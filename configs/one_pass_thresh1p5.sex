@@ -1,0 +1,44 @@
+# DASCH-inspired sweep variant of one_pass.sex: decouple detection from
+# rejection. DASCH (Laycock et al. 2010, AJ 140, 1062) runs SExtractor at a
+# deliberately low 1.5-sigma threshold on photographic plates and rejects
+# noise downstream via a separately-derived statistical cut, rather than
+# asking DETECT_THRESH to do both jobs at once. Our downstream SNR_WIN>=30
+# MNRAS filter plays the same role as DASCH's limiting-magnitude cut, so
+# this variant tests whether a permissive detection stage + the existing
+# filter recovers more real content than DETECT_THRESH=5 discards up front.
+# Everything else is identical to one_pass.sex to isolate this one variable.
+PARAMETERS_NAME  sex_default.param   # pass-1 param set: no SPREAD_MODEL/VIGNET
+
+# -------------------------------- Detection ---------------------------------
+DETECT_TYPE      CCD            # Treat as standard CCD format
+DETECT_MINAREA   5              # Default. Low value captures small film grain clumps
+DETECT_THRESH    1.5            # DASCH-inspired: permissive detection, reject via SNR_WIN downstream
+ANALYSIS_THRESH  1.5            # matched to DETECT_THRESH -- SExtractor Handbook (SUN/226) warns
+                                 # objects are not re-detected if these differ
+
+FILTER           Y              # Enable filtering
+FILTER_NAME      default.conv   # Use standard 3x3 convolution mask (no heavy smoothing)
+
+# -------------------------------- Deblending --------------------------------
+DEBLEND_NTHRESH  32             # Standard threshold levels
+DEBLEND_MINCONT  0.005          # Default. Highly prone to shredding star halos/spikes into fake sources
+
+# -------------------------------- Cleaning ----------------------------------
+CLEAN            Y
+CLEAN_PARAM      1.0            # Default cleaning efficiency
+
+# -------------------------------- Background --------------------------------
+BACK_SIZE        64             # Small mesh size; tracks fine-scale plate gradients and edge noise
+BACK_FILTERSIZE  3              # Standard median filter size for background mesh
+
+# -------------------------------- Photometry --------------------------------
+PHOT_APERTURES   5              # Default fixed circular aperture diameter in pixels
+PHOT_AUTOPARAMS  2.5, 3.5       # Default Kron parameters for MAG_AUTO
+SATUR_LEVEL      50000.0        # Left uncalibrated high (default proxy)
+
+# ------------------------- Star/Galaxy Separation ---------------------------
+SEEING_FWHM      3.0            # Unoptimized default seeing baseline
+STARNNW_NAME     default.nnw    # Standard neural network weights file
+PIXEL_SCALE      1.7            # STScI POSS-1 (DSS1) scans are ~1.7 arcsec/pixel; confirmed no-op
+
+PARAMETERS_NAME  sex_default.param

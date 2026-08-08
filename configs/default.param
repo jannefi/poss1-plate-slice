@@ -1,0 +1,58 @@
+# --- VASCO default.param (PSF-aware; pass-2 only) ---
+#
+# Pass 2 SExtractor output columns. This file is NOT used for pass 1 —
+# configs/sex_default.param covers pass 1 and must keep VIGNET + FLUXERR_APER
+# because PSFEx reads those from pass1.ldac to build the PSF model.
+#
+# Columns in this file are limited to ones the downstream pipeline actually
+# reads (veto chain, filters_mnras, exporter3 QA charts, render scripts).
+# Grep-verified unused columns were removed to shrink pass2.ldac (VIGNET alone
+# accounted for ~98% of the LDAC file size).
+
+# identifiers / flags
+NUMBER
+FLAGS
+
+# image coordinates (pixels)
+X_IMAGE
+Y_IMAGE
+XWIN_IMAGE
+YWIN_IMAGE
+ELONGATION
+FWHM_IMAGE
+
+# MNRAS 2022 needs
+XMIN_IMAGE
+XMAX_IMAGE
+YMIN_IMAGE
+YMAX_IMAGE
+
+# sky coordinates (degrees) — provide multiple variants (defensive fallbacks
+# in vasco/cli_pipeline.py:_detect_radec_columns)
+X_WORLD
+Y_WORLD
+ALPHA_J2000
+DELTA_J2000
+ALPHAWIN_J2000
+DELTAWIN_J2000
+
+# photometry
+FLUX_AUTO
+MAG_AUTO
+
+# morphology / QA (ELLIPTICITY and CLASS_STAR are only read by exporter3 QA
+# charts; kept for those diagnostics)
+CLASS_STAR
+ELLIPTICITY
+
+# PSF-aware features (SPREAD_MODEL is the morphology gate in filters_mnras)
+SPREAD_MODEL
+SPREADERR_MODEL
+
+# S/N in Gaussian window (SNR_WIN>30 gate in filters_mnras)
+SNR_WIN
+
+# Aperture photometry (kept because PSFEx reads FLUX_APER for normalization
+# via psfex.conf PHOTFLUX_KEY; FLUXERR_APER was removed as it's unused in
+# pass2 — PSFEx only reads it from pass1.ldac)
+FLUX_APER(1)

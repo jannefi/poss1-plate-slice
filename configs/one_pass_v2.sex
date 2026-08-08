@@ -1,0 +1,38 @@
+# -------------------------------- Detection ---------------------------------
+DETECT_TYPE      CCD            # Treat as CCD (even though it's a plate scan)
+DETECT_MINAREA   8              # Minimum pixels above threshold (higher than CCDs to ignore grain clumps)
+DETECT_THRESH    2.5            # Threshold in sigmas (higher to combat non-Gaussian film grain noise)
+ANALYSIS_THRESH  2.5            # Same as DETECT_THRESH
+
+FILTER           Y              # Filtering is MANDATORY for photographic plates
+FILTER_NAME      gauss_3.0_7x7.conv  # Use a strong Gaussian filter to smooth emulsion grain
+
+# -------------------------------- Deblending --------------------------------
+DEBLEND_NTHRESH  32             # Number of deblending thresholds
+DEBLEND_MINCONT  0.01           # STRICTER than default (0.005 - 0.01). Default (0.001) will shatter POSS-1 diffraction spikes into fake galaxies.
+
+# -------------------------------- Cleaning ----------------------------------
+CLEAN            Y              # Clean spurious detections
+CLEAN_PARAM      1.2            # Slightly higher than default to aggressively prune artifacts
+
+# -------------------------------- Background --------------------------------
+BACK_SIZE        128            # 128 or 256. Large enough to model uneven plate fog/vignetting without eating star halos.
+BACK_FILTERSIZE  3              # Median filter size for background mesh
+
+# -------------------------------- Photometry --------------------------------
+MAG_ZEROPOINT    0.0            # POSS-1 scans are NOT photometrically calibrated by default. You will need to cross-match later.
+PHOT_APERTURES   5              # Circular aperture diameter in pixels (adjust based on your needs)
+PHOT_AUTOPARAMS  2.5, 3.5       # Kron photometry parameters
+SATUR_LEVEL      25000.0        # CRITICAL: Check your FITS. DSS scans rarely max at 65535. They often saturate around 25000 to 30000. Use DS9 to check the core of a bright star.
+
+# ----------------------- Memory & Performance -------------------------------
+MEMORY_OBJSTACK  30000          # Increase if you are scanning a highly crowded plate
+MEMORY_PIXSTACK  3000000        # Increase to handle the massive POSS-1 halos
+MEMORY_BUFSIZE   1024           # Lines in the image buffer
+
+# ------------------------- Star/Galaxy Separation ---------------------------
+SEEING_FWHM      4.0            # POSS-1 seeing is usually between 3.0" and 5.0". Use 4.0 as a baseline.
+STARNNW_NAME     default.nnw    # Default neural network weights
+PIXEL_SCALE      1.7            # IMPORTANT: STScI POSS-1 (DSS1) scans are almost exactly 1.7 arcsec/pixel.
+
+PARAMETERS_NAME  sex_default.param

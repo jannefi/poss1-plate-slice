@@ -1,0 +1,28 @@
+Creative Commons Attribution 4.0 International (CC BY 4.0)
+
+The derived data products in this repository -- the catalogues under `results/`
+and the per-plate correction table `data/plate_crpix_table.csv` -- are made
+available under CC BY 4.0.
+
+    https://creativecommons.org/licenses/by/4.0/
+
+You are free to share and adapt these products for any purpose, including
+commercially, provided you give appropriate credit, link to the licence, and
+indicate whether changes were made.
+
+To cite:
+
+    Ahlberg, J. (2026), poss1-plate-slice: an independent POSS-I plate-slicing
+    reproduction, https://github.com/<user>/poss1-plate-slice
+
+---
+
+IMPORTANT -- THIS LICENCE COVERS THE DERIVED PRODUCTS, NOT THE SOURCE IMAGERY
+
+These catalogues are derived from the Digitized Sky Survey and the National
+Geographic Society - Palomar Observatory Sky Atlas. Those surveys carry their
+own terms and required acknowledgments, which CC BY 4.0 here neither replaces
+nor overrides. Any use of these products must carry the survey acknowledgments
+set out in ACKNOWLEDGMENTS.md.
+
+The plate headers themselves record `COPYRGHT = 'STScI/AURA'`.

@@ -1,0 +1,41 @@
+# Single-pass SExtractor config (repro/mnras-parity deviation #1): no PSFEx
+# run, no SPREAD_MODEL. CATALOG_NAME/CATALOG_TYPE/PSF_NAME are supplied on
+# the command line by run_single_pass(), matching run_pass1/run_pass2.
+PARAMETERS_NAME  sex_default.param   # pass-1 param set: no SPREAD_MODEL/VIGNET
+
+# -------------------------------- Detection ---------------------------------
+DETECT_TYPE      CCD            # Treat as standard CCD format
+DETECT_MINAREA   5              # Default. Low value captures small film grain clumps
+DETECT_THRESH    5              # from https://scispace.com/pdf/discovering-vanishing-objects-in-poss-i-red-images-using-the-13ck5h4b.pdf try 1.5 if needed
+ANALYSIS_THRESH  5              # matched to DETECT_THRESH -- SExtractor Handbook (SUN/226) warns
+                                 # objects are not re-detected if these differ; empirically +2.7% final
+                                 # MNRAS-filtered candidates on the XE524 sweep vs the prior 1.5 value
+
+FILTER           Y              # Enable filtering
+FILTER_NAME      default.conv   # Use standard 3x3 convolution mask (no heavy smoothing)
+
+# -------------------------------- Deblending --------------------------------
+DEBLEND_NTHRESH  32             # Standard threshold levels
+DEBLEND_MINCONT  0.005          # Default. Highly prone to shredding star halos/spikes into fake sources
+
+# -------------------------------- Cleaning ----------------------------------
+CLEAN            Y              
+CLEAN_PARAM      1.0            # Default cleaning efficiency
+
+# -------------------------------- Background --------------------------------
+BACK_SIZE        64             # Small mesh size; tracks fine-scale plate gradients and edge noise
+BACK_FILTERSIZE  3              # Standard median filter size for background mesh
+
+# -------------------------------- Photometry --------------------------------
+PHOT_APERTURES   5              # Default fixed circular aperture diameter in pixels
+PHOT_AUTOPARAMS  2.5, 3.5       # Default Kron parameters for MAG_AUTO
+SATUR_LEVEL      50000.0        # Left uncalibrated high (default proxy)
+
+# ------------------------- Star/Galaxy Separation ---------------------------
+SEEING_FWHM      3.0            # Unoptimized default seeing baseline
+STARNNW_NAME     default.nnw    # Standard neural network weights file
+PIXEL_SCALE      1.7            # STScI POSS-1 (DSS1) scans are ~1.7 arcsec/pixel; confirmed no-op
+                                 # against FITS-header WCS auto-derivation on the XE524 sweep --
+                                 # set explicitly for robustness/consistency with one_pass_v2.sex
+
+PARAMETERS_NAME  sex_default.param

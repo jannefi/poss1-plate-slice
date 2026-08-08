@@ -1,0 +1,28 @@
+# Data roots are never committed. `data/` is a symlink to bulk storage; the
+# intermediate RA/Dec extracts alone are ~14 GB and are fully regenerable from
+# the plate scans, so they are outputs, not sources.
+/data
+/work
+/logs
+/tiles
+*.fits
+*.ldac
+
+# Local catalogue mirrors (Gaia/PS1/USNO-B). The BUILDERS are committed under
+# scripts/local_cache; the mirrors they produce are hundreds of GB.
+*.parquet
+
+# Results are committed GZIPPED only -- a 20 MB CSV re-added on every run would
+# live in the pack forever. See docs/REPRODUCING.md.
+results/**/*.csv
+!results/**/*.csv.gz
+
+__pycache__/
+*.py[codz]
+*.so
+.venv/
+venv/
+.DS_Store
+
+# Machine-specific path overrides
+config.local.yaml

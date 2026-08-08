@@ -1,0 +1,32 @@
+# Data roots. Nothing here is committed data -- these point at bulk storage.
+#
+# Resolution order for every key (see vasco/paths.py):
+#   1. environment variable   POSS1_<KEY>       (e.g. POSS1_PLATE_DIR)
+#   2. this file
+#   3. the built-in fallback, which is almost certainly wrong for your machine
+#
+# Copy to config.local.yaml (gitignored) if you would rather not edit a tracked
+# file. config.local.yaml wins over this one.
+
+# Full-plate DSS scans from IRSA: dss1red_XE*.fits, one per plate.
+#   https://irsa.ipac.caltech.edu/data/DSS/images/dss1red/
+plate_dir: <path to dss1red_XE*.fits>
+
+# Archive cutout tiles from the STScI/MAST cutout service. Needed for the
+# archive arm, and for building the CRPIX correction table -- these headers are
+# the only place the explicit FITS WCS solution appears.
+tiles_dir: <path to archive cutout tiles>
+
+# Scratch and run outputs. Large; never committed.
+work_dir: work
+
+# Local catalogue mirrors, built by scripts/local_cache/. Without these the veto
+# stages fall back to live VizieR/MAST queries, which is far slower and will get
+# you rate-limited on a full run.
+gaia_cache:  <path to gaia mirror>
+ps1_cache:   <path to ps1 mirror>
+usnob_cache: <path to usnob mirror>
+maps_cache:  <path to maps cache>
+
+# Cached plate headers, used by the edge report.
+plate_headers: <path to cached plate headers>
