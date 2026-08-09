@@ -108,6 +108,22 @@ def main():
     print(f"[MODE] {'single-pass' if single else 'two-pass'}, "
           f"vetoes {'ON' if args.with_vetoes else 'OFF'}")
 
+    # Echo the environment-driven settings. These change the science silently:
+    # a stray VASCO_CIRCLE_ARCMIN inherited from an interactive shell once cut
+    # every tile to a 30' circle for 106 plates of a full-scale run, discarding
+    # ~21% of detections and reintroducing the corner gaps the square-tile
+    # design exists to avoid. Nothing errored; the numbers were simply wrong.
+    circle = os.environ.get("VASCO_CIRCLE_ARCMIN", "") or "off"
+    print(f"[CONFIG] circle_cut={circle}  crpix_table={args.crpix_table or 'NONE'}  "
+          f"drop_vignet={os.environ.get('VASCO_LDAC_DROP_VIGNET', '0')}")
+    if args.with_vetoes:
+        for e in REQUIRED_ENV_VETO:
+            print(f"[CONFIG] {e}={os.environ.get(e)}")
+    if circle != "off":
+        print("[CONFIG][WARN] a circular cut is ACTIVE -- README documents square "
+              "tiles with no 30' cut. Unset VASCO_CIRCLE_ARCMIN unless you mean it.",
+              flush=True)
+
     out = Path(args.out_dir)
     if "tiles_archive" in str(out.resolve()):
         raise SystemExit("[FATAL] refusing to run inside the production archive")
@@ -133,7 +149,7 @@ def main():
 
     prog = out / "progress.csv"
     if not prog.exists():
-        prog.write_text("plate,tiles_sliced,tiles_with_catalogs,detections,skips,seconds,status\n")
+        prog.write_text("plate,tiles_sliced,tiles_with_catalogs,detections,skips,survivors,seconds,status\n")
 
     t_start = time.time()
     for i, plate in enumerate(plates, 1):
@@ -159,21 +175,30 @@ def main():
             print(f"[{i}/{len(plates)}] {plate} SLICE FAILED rc={proc.returncode} "
                   f"(see {logs / (plate + '.log')})", flush=True)
             with prog.open("a") as f:
-                f.write(f"{plate},0,0,0,0,{time.time()-t0:.0f},slice_failed\n")
+                f.write(f"{plate},0,0,0,0,0,{time.time()-t0:.0f},slice_failed\n")
             continue
         n_sliced = len([l for l in tiles_file.read_text().split() if l])
         if n_skip or n_sliced != args.grid ** 2:
             print(f"[{i}/{len(plates)}] {plate} [WARN] {n_sliced}/{args.grid**2} tiles, "
                   f"{n_skip} skipped -- grid is walking off the array", flush=True)
 
-        subprocess.run([PY, "tools/run_steps_2_3_parallel.py",
-                        "--tiles-file", str(tiles_file), "--workers", str(args.workers)],
-                       cwd=REPO, capture_output=True, text=True)
-
-        if args.with_vetoes:
-            subprocess.run([PY, "tools/run_steps_4_5_parallel.py",
+        # Keep the step runners' output. It used to be captured and dropped, so
+        # a plate that failed every tile reported "0 cat" with no reason -- the
+        # traceback that said why (a missing import, in one real case) existed
+        # and was thrown away. One log per plate costs kilobytes.
+        steps_log = logs / f"{plate}.steps.log"
+        with steps_log.open("w") as sf:
+            sf.write(f"=== steps 2+3 :: {plate} ===\n")
+            sf.flush()
+            subprocess.run([PY, "tools/run_steps_2_3_parallel.py",
                             "--tiles-file", str(tiles_file), "--workers", str(args.workers)],
-                           cwd=REPO, capture_output=True, text=True)
+                           cwd=REPO, stdout=sf, stderr=subprocess.STDOUT, text=True)
+            if args.with_vetoes:
+                sf.write(f"\n=== steps 4+5 :: {plate} ===\n")
+                sf.flush()
+                subprocess.run([PY, "tools/run_steps_4_5_parallel.py",
+                                "--tiles-file", str(tiles_file), "--workers", str(args.workers)],
+                               cwd=REPO, stdout=sf, stderr=subprocess.STDOUT, text=True)
 
         # --- extract lean RA/Dec, then drop the heavy tree -----------------
         rows, n_cat = [], 0
@@ -222,7 +247,7 @@ def main():
         if args.with_vetoes and n_surv != n_sliced:
             status = "partial"
         with prog.open("a") as f:
-            f.write(f"{plate},{n_sliced},{n_cat},{n_det},{n_skip},{dt:.0f},{status}\n")
+            f.write(f"{plate},{n_sliced},{n_cat},{n_det},{n_skip},{n_surv},{dt:.0f},{status}\n")
         done = i
         eta = (time.time() - t_start) / max(done, 1) * (len(plates) - done) / 3600.0
         print(f"[{i}/{len(plates)}] {plate} {status}: {n_sliced} sliced, {n_cat} cat, "
