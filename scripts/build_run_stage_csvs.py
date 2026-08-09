@@ -427,8 +427,15 @@ def main():
         n_out = 0
         note = ""
 
-        if not cat_path.exists() or cat_path.stat().st_size == 0:
+        if not cat_path.exists():
             note = "missing survivors csv"  # set later if needed
+        elif cat_path.stat().st_size == 0:
+            # A zero-byte file is the pipeline's deliberate "no survivors"
+            # artifact: cli_pipeline writes it both at the morphology early-exit
+            # and as veto carry-forward. It is a valid empty result, not a lost
+            # tile, and must stay distinguishable from an absent file -- that is
+            # the only signal a genuinely failed tile leaves behind.
+            empty_file_valid = True
         else:
             cols = detect_header_cols(cat_path)
             radec = pick_radec_cols(cols)
@@ -482,7 +489,7 @@ def main():
             "rows_in_tile_filtered_csv": n_in,
             "rows_emitted_to_S0": n_out,
             "skipped_delta": 0,
-            "notes": note,
+            "notes": note or ("valid empty (no survivors)" if empty_file_valid else ""),
         })
 
     # manifest
