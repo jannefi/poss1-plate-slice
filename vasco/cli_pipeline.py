@@ -1469,6 +1469,13 @@ def _post_xmatch_tile(tile_dir, pass2_ldac, *, radius_arcsec: float = 5.0) -> No
     remainder = after_usnob
     try:
         if (not remainder.exists()) or remainder.stat().st_size == 0:
+            # Nothing survived the vetoes. Write the empty survivors file anyway:
+            # _apply_mnras_filters_and_spikes is the only writer of filtered.csv
+            # and is skipped by this early return, so without this a tile emptied
+            # by a veto leaves NO file, while one emptied by the morphology gate
+            # leaves a 0-byte one. Two representations of the same outcome, and
+            # the absent one is indistinguishable from a tile lost to a crash.
+            (catdir / 'sextractor_pass2.filtered.csv').write_text('', encoding='utf-8')
             write_summary(tile_dir, finalize(buckets), md_path='MNRAS_SUMMARY.md', json_path='MNRAS_SUMMARY.json')
             _augment_summary_json(tile_dir, {
                 'veto_start_rows': veto_start_rows,
