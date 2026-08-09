@@ -113,6 +113,12 @@ someone else's filesystem.
 **Do this before slicing.** Skipping it leaves a ~2.3″ systematic on a third of
 the sky — see [`DSS_WCS_TWO_SOLUTIONS.md`](DSS_WCS_TWO_SOLUTIONS.md).
 
+A prebuilt table for the 634-plate footprint ships as
+`data/plate_crpix_table.csv`, so you can skip ahead and slice with it as is.
+Rebuilding is how you *verify* it rather than trust it, and that needs one
+archive cutout per plate — worth doing before relying on the numbers, since the
+correction is derived from headers you can check yourself.
+
 ```bash
 python3 tools/build_plate_crpix_table.py \
     --plate-dir <plate_dir> --archive-tiles <tiles_dir> \

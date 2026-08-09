@@ -1,7 +1,13 @@
 # Data roots are never committed. `data/` is a symlink to bulk storage; the
 # intermediate RA/Dec extracts alone are ~14 GB and are fully regenerable from
 # the plate scans, so they are outputs, not sources.
-/data
+#
+# The one exception is the CRPIX table: 55 KB, derived entirely from public
+# headers, and load-bearing -- without it a third of plates carry a ~2.3"
+# systematic and nothing errors out. Excluding the directory outright meant git
+# never descended into it, so `/data/*` is required for the negation to work.
+/data/*
+!/data/plate_crpix_table.csv
 /work
 /logs
 /tiles
