@@ -45,12 +45,12 @@ def process_tile(tile: str, force: bool) -> tuple[str, bool, str]:
     t0 = time.time()
     tile = str(tile_path.resolve())
     # Step 2
-    rc2 = run(["python","-u","-m","vasco.cli_pipeline","step2-pass1","--workdir",tile])
+    rc2 = run([sys.executable,"-u","-m","vasco.cli_pipeline","step2-pass1","--workdir",tile])
     if rc2 not in (0,):  # 2 can be "missing raw" or similar; treat non-zero as soft fail
         # Still attempt step 3; gating may skip it
         pass
     # Step 3
-    rc3 = run(["python","-u","-m","vasco.cli_pipeline","step3-psf-and-pass2","--workdir",tile])
+    rc3 = run([sys.executable,"-u","-m","vasco.cli_pipeline","step3-psf-and-pass2","--workdir",tile])
     ok = (rc3 == 0)
     dt = time.time() - t0
     msg = f"{Path(tile).name}: step2 rc={rc2}, step3 rc={rc3}, {dt:.1f}s"
