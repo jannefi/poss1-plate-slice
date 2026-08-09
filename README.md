@@ -104,6 +104,13 @@ Deliberate simplifications, listed so they stay auditable rather than silent.
 
 ## Getting the data
 
+**Budget ~750 GB of input data.** Measured over the 634-plate footprint: ~300 GB
+of plate scans, ~6 GB of cutouts, and 427 GB of catalogue mirrors. Working space
+is modest next to that — 14 GB of lean output and 1–8 GB of scratch, because the
+runner holds one plate on disk at a time. A **detection-only** reproduction that
+skips the veto chain needs the first two items alone, **~306 GB**. Full breakdown
+and time budgets in [`docs/REPRODUCING.md`](docs/REPRODUCING.md).
+
 ### DSS1 full-plate scans (required)
 
 The recommended source is IRSA's bulk, **plate-addressed** archive:
@@ -124,10 +131,10 @@ cutout per plate even if you do not use the archive arm.
 
 ### Local catalogue mirrors (strongly recommended)
 
-The veto stages cross-match against Gaia, Pan-STARRS1 and USNO-B1.0. Builders are
-in `scripts/local_cache/`. Without local mirrors the stages fall back to live
-VizieR/MAST queries, which is far slower and will get you rate-limited well before
-a survey-scale run completes.
+The veto stages cross-match against Gaia (**58 GB**), Pan-STARRS1 (**308 GB**) and
+USNO-B1.0 (**61 GB**). Builders are in `scripts/local_cache/`. Without local
+mirrors the stages fall back to live VizieR/MAST queries, which is far slower and
+will get you rate-limited well before a survey-scale run completes.
 
 > **Practical warning.** Building these mirrors is a bulk-download exercise, and
 > for at least one or two of the surveys it is impractical outside a
