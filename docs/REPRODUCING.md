@@ -6,18 +6,55 @@ change and which you may not.
 
 ## 0. What you are committing to
 
-| resource | requirement |
-|---|---|
-| plate scans | ~1 GB per plate; 634 plates for the full footprint |
-| slice run | ~3 h at 12 workers, whole survey |
-| peak disk during slicing | one plate's tiles, a few GB |
-| lean RA/Dec output | ~14 GB for the full survey |
-| local catalogue mirrors | large, and see the README's warning about bulk access |
+Budget **~750 GB of input data** before you start. Every figure below is measured
+from a real full-survey run over the 634-plate footprint, not estimated.
+
+### Input data, downloaded once
+
+| item | size | notes |
+|---|---:|---|
+| DSS1-red full plate scans, 634 plates | **~300 GB** | mean 0.48 GB each, largest 1.06 GB |
+| STScI cutouts, one per plate | **~6 GB** | 9 MB per 60′ cutout; needed only for the CRPIX table in step 4 |
+| Gaia mirror | **58 GB** | |
+| Pan-STARRS1 mirror | **308 GB** | by far the largest single item |
+| USNO-B1.0 mirror | **61 GB** | |
+| **total** | **~733 GB** | |
+
+The three mirrors are 427 GB of that. They are optional in the sense that the
+code falls back to live queries, and impractical to omit in practice — see §2.
+To reproduce only the **detection** numbers and not the veto chain, the plate
+scans and cutouts alone suffice: **~306 GB**.
+
+### Working space and outputs
+
+| item | size | notes |
+|---|---:|---|
+| lean RA/Dec CSVs, whole survey | **14 GB** | 634 files; the detection-level product |
+| survivors tree after the veto chain | **<1 GB** | |
+| peak scratch, one plate in flight | **1–8 GB** | 49 tiles, ~30 MB each mid-run and ~150 MB fully populated |
+| every tile tree retained (`--keep-tiles`) | **~5 TB** | 31,066 tiles × ~150 MB |
 
 **Disk discipline is load-bearing, not tidiness.** `run_fullscale_slice.py` keeps
 exactly one plate's tile tree on disk at a time: slice, extract, write the lean
-RA/Dec CSV, delete. Retaining every tile tree through the veto stages would need
-roughly **7.4 TB**. If you pass `--keep-tiles`, size your storage first.
+RA/Dec CSV, delete. That is what holds the peak at single-digit GB instead of
+~5 TB. If you pass `--keep-tiles`, size your storage first.
+
+Setting `VASCO_LDAC_DROP_VIGNET=1` drops the `VIGNET` postage stamps during the
+LDAC→CSV conversion and is worth it at survey scale; it changes no column the
+pipeline consumes.
+
+### Time
+
+| run | cost at 12 workers |
+|---|---|
+| detection only, no vetoes | **~3 h** |
+| full chain, `--with-vetoes` | **~4.5 days**, ~630 s/plate |
+
+Runtime is set by **sky density, not I/O**: `corr(|galactic b|, detections)` is
+−0.89, and plates run in `XE` order, which sweeps the galactic plane — so the
+printed ETA drifts upward mid-plane and back down afterwards. That is expected,
+not a stall. Both runs are **resumable** per plate, so an interruption costs only
+the plate in flight.
 
 ## 1. Software
 
