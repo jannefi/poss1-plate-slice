@@ -1,0 +1,44 @@
+# Pinned to the versions the published results were produced with.
+#
+# Pins are exact on purpose. This pipeline's failure mode is silent: a
+# different library version changes numbers rather than raising, and the
+# results here are only checkable if the environment is reconstructible.
+# Loosen them if you like, but re-run the parity check in docs/REPRODUCING.md
+# afterwards rather than assuming.
+#
+# Not installable from here: SExtractor, PSFEx and STILTS are external
+# binaries and must be on PATH. Versions used were SExtractor 2.28.2,
+# PSFEx 3.24.2, STILTS 3.5-4.
+
+# --- core: required for slicing, extraction and the veto chain -------------
+astropy==7.2.0
+astropy-healpix==2.0.0
+# numpy 2.4.0 is YANKED upstream (backward-compatibility bug) and pip will warn.
+# Pinned deliberately: it is the version the published results were produced
+# with, and reproducing them matters more here than installing a tidy release.
+# Revisit by moving the pin forward and re-running the parity check, not by
+# assuming a newer patch is equivalent.
+numpy==2.4.0
+scipy==1.16.3
+pandas==2.3.3
+pyarrow==22.0.0
+matplotlib==3.10.8
+requests==2.32.5
+urllib3==2.6.2
+PyYAML==6.0.3
+
+# Live VizieR/MAST queries. Needed only without local mirrors, but imported
+# unconditionally by the fetch path, so it is not optional in practice.
+astroquery==0.4.11
+
+# Optional: python-dotenv, auto-loads .env if present. The import is guarded,
+# so the pipeline runs without it.
+# python-dotenv==1.0.1
+
+# --- optional: individual post-processing stages and validation tools ------
+# Install only if you run these. Nothing in the main chain needs them.
+#   scripts/stage_shape_post.py            -> opencv, photutils
+#   tools/validate_spread_model_cutout.py  -> galsim
+# opencv-python-headless==4.13.0.92
+# photutils==2.3.0
+# galsim==2.8.4
