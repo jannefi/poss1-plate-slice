@@ -2,12 +2,16 @@
 # intermediate RA/Dec extracts alone are ~14 GB and are fully regenerable from
 # the plate scans, so they are outputs, not sources.
 #
-# The one exception is the CRPIX table: 55 KB, derived entirely from public
-# headers, and load-bearing -- without it a third of plates carry a ~2.3"
-# systematic and nothing errors out. Excluding the directory outright meant git
-# never descended into it, so `/data/*` is required for the negation to work.
+# Two exceptions, both small, both derived entirely from public headers, and
+# both load-bearing. The CRPIX table (55 KB): without it a third of plates carry
+# a ~2.3" systematic and nothing errors out. The plate manifest (5 KB): it is the
+# footprint definition, and both README and REPRODUCING tell users to pass it.
+# Excluding the directory outright meant git never descended into it, so
+# `/data/*` is required for these negations to work -- a bare `!` under a
+# directory exclusion is silently useless.
 /data/*
 !/data/plate_crpix_table.csv
+!/data/plate_manifest.csv
 /work
 /logs
 /tiles
