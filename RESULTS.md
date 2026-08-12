@@ -5,22 +5,55 @@ catalogue (SVO `vanish-possi`, 5,399 rows). Nothing on this page depends on data
 that is not publicly available, so every number can be reproduced independently —
 see [`docs/REPRODUCING.md`](docs/REPRODUCING.md).
 
+## Footprint
+
+Every POSS-I red plate whose centre declination is ≥ −3.0°: **642** of the 932
+scans in IRSA's `dss1red` library. Three independent public checks support that
+boundary, and none of them requires a catalogue this project cannot redistribute.
+
+**The threshold is not a tuned parameter.** No plate centre lies between −5° and
+−1°, so every cut inside that 4.4° gap selects the same 642 plates.
+`tools/build_plate_manifest.py` asserts the gap is empty rather than assuming it,
+so a future library that broke the separation would fail loudly instead of
+quietly returning a different footprint.
+
+**The southern edge is where the published catalogue ends.** The Solano et al.
+(2022) vanishing-object catalogue (SVO `vanish-possi`, 5,399 rows) spans
+−3.32° ≤ δ ≤ +87.97°, with 76 rows below δ = 0 and exactly one below −3.
+
+**The plates are populated across essentially the whole set.** The publicly
+released NeoWISE-proximate subset (SVO `vanish-neowise`, 171,753 rows — set *W*
+of Watters et al. 2026, characterised there as a spatially uniform-random sample
+of the parent catalogue) has sources on **633 of the 642**.
+
+For reference, VASCO's published analyses used 635 plates (Villarroel et al.
+2026, Fig. 1). This footprint is 642. Which plates the two lists share is not
+something this repository can establish, because the 635-plate list has not been
+published.
+
 ## Raw detection recall
 
-Fraction of published catalogue rows with a detection within a given radius.
-7×7 tiles per plate, per-plate CRPIX correction applied. Measured over the 634
-plates processed in the first campaign; the footprint has since been extended to
-642 (see [`docs/REPRODUCING.md`](docs/REPRODUCING.md) §2), and these figures will
-be re-derived over the full 642 rather than extrapolated.
+Fraction of published catalogue rows with a detection within a given radius,
+over the full 642-plate footprint. 7×7 tiles per plate, per-plate CRPIX
+correction applied.
 
-| arm | 1″ | 2″ | 3″ | 5″ | 10″ |
-|---|---:|---:|---:|---:|---:|
-| `fullplate` — local slices of IRSA full-plate scans | 83.37% | 94.26% | 96.91% | **97.24%** | 97.85% |
-| `archive` — STScI cutout service | 67.61% | 81.66% | 84.77% | 85.42% | 86.59% |
-| **`fullplate+archive`** | 86.22% | 96.07% | 98.30% | **98.59%** | 99.00% |
+| arm | 1″ | 2″ | 3″ | 5″ | 10″ | 30″ |
+|---|---:|---:|---:|---:|---:|---:|
+| `fullplate` — local slices of IRSA full-plate scans | 83.39% | 94.26% | 96.91% | **97.24%** | 97.85% | 99.04% |
+| `archive` — STScI cutout service | 67.61% | 81.66% | 84.78% | 85.42% | 86.59% | 90.68% |
+| **`fullplate+archive`** | 86.22% | 96.06% | 98.30% | **98.59%** | 99.00% | 99.56% |
 
-Arm sizes: `fullplate` 186,480,066 detections over 634 files; `archive`
+Arm sizes: `fullplate` 189,241,189 detections over 642 files; `archive`
 179,887,397 over 31,004 tiles.
+
+Extending the footprint from the 634 plates of the first campaign to all 642
+moved these figures by at most 0.02 points — `fullplate` at 1″ rose from 83.37%
+to 83.39%, the union at 2″ fell from 96.07% to 96.06%, and every other cell is
+unchanged. That is the expected result rather than a disappointing one: the
+reference catalogue was built over its authors' own footprint, so the plates
+added here contribute coverage where it has almost no rows to recover. The
+recall numbers and the footprint claim are therefore close to independent —
+widening the footprint does not flatter the recall.
 
 **The locally-sliced arm alone exceeds the archive arm by ~12 points at 5″.**
 That is the central result: naming the plate yourself outperforms letting a
