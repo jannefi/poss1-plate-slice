@@ -6,30 +6,35 @@ change and which you may not.
 
 ## 0. What you are committing to
 
-Budget **~750 GB of input data** before you start. Every figure below is measured
-from a real full-survey run over the 634-plate footprint, not estimated.
+Budget **~700 GB of input data** before you start. Every figure below is measured
+from a real full-survey run over the 642-plate footprint, not estimated.
 
 ### Input data, downloaded once
 
 | item | size | notes |
 |---|---:|---|
-| DSS1-red full plate scans, 634 plates | **~300 GB** | mean 0.48 GB each, largest 1.06 GB |
+| DSS1-red full plate scans, 642 plates | **252 GB** | uniformly 0.39 GB each |
 | STScI cutouts, one per plate | **~6 GB** | 9 MB per 60′ cutout; needed only for the CRPIX table in step 4 |
 | Gaia mirror | **58 GB** | |
 | Pan-STARRS1 mirror | **308 GB** | by far the largest single item |
 | USNO-B1.0 mirror | **61 GB** | |
-| **total** | **~733 GB** | |
+| **total** | **~685 GB** | |
 
 The three mirrors are 427 GB of that. They are optional in the sense that the
 code falls back to live queries, and impractical to omit in practice — see §2.
 To reproduce only the **detection** numbers and not the veto chain, the plate
-scans and cutouts alone suffice: **~306 GB**.
+scans and cutouts alone suffice: **~258 GB**.
+
+The plate-scan figure is for this footprint specifically. IRSA's `dss1red`
+library holds 932 scans totalling 443 GB, averaging 0.48 GB and reaching 1.06 GB
+— but every plate in the 642 is 0.39 GB, so sizing from the library average
+over-provisions by about a fifth.
 
 ### Working space and outputs
 
 | item | size | notes |
 |---|---:|---|
-| lean RA/Dec CSVs, whole survey | **14 GB** | 634 files; the detection-level product |
+| lean RA/Dec CSVs, whole survey | **~14 GB** | 642 files; the detection-level product |
 | survivors tree after the veto chain | **<1 GB** | |
 | peak scratch, one plate in flight | **1–8 GB** | 49 tiles, ~30 MB each mid-run and ~150 MB fully populated |
 | every tile tree retained (`--keep-tiles`) | **~5 TB** | 31,066 tiles × ~150 MB |
@@ -48,7 +53,7 @@ pipeline consumes.
 | run | cost at 12 workers |
 |---|---|
 | detection only, no vetoes | **~3 h** |
-| full chain, `--with-vetoes` | **~4.5 days**, ~630 s/plate |
+| full chain, `--with-vetoes` | **~4.7 days**, ~630 s/plate |
 
 Runtime is set by **sky density, not I/O**: `corr(|galactic b|, detections)` is
 −0.89, and plates run in `XE` order, which sweeps the galactic plane — so the
@@ -74,8 +79,18 @@ https://irsa.ipac.caltech.edu/data/DSS/images/dss1red/
 ```
 
 Plate-addressed, so you fetch exactly the plates you intend to use. Files are
-named `dss1red_XE*.fits`. The footprint used here is the 634-plate list in
-`data/plate_manifest.csv`.
+named `dss1red_XE*.fits`. The footprint used here is the 642-plate list in
+`data/plate_manifest.csv`: every POSS-I red plate whose centre declination is
+≥ −3.0°. That list is not hand-curated — regenerate it from the headers with
+
+```bash
+python3 tools/build_plate_manifest.py \
+    --plate-dir <plate_dir> --out data/plate_manifest.csv
+```
+
+The threshold is not a tuned parameter: no plate centre lies between −5° and
+−1°, so any cut inside that gap selects the same 642 plates, and the generator
+asserts that gap is empty rather than trusting it.
 
 ### Archive cutouts (required)
 
@@ -113,7 +128,7 @@ someone else's filesystem.
 **Do this before slicing.** Skipping it leaves a ~2.3″ systematic on a third of
 the sky — see [`DSS_WCS_TWO_SOLUTIONS.md`](DSS_WCS_TWO_SOLUTIONS.md).
 
-A prebuilt table for the 634-plate footprint ships as
+A prebuilt table for the 642-plate footprint ships as
 `data/plate_crpix_table.csv`, so you can skip ahead and slice with it as is.
 Rebuilding is how you *verify* it rather than trust it, and that needs one
 archive cutout per plate — worth doing before relying on the numbers, since the
@@ -148,7 +163,7 @@ continues where it stopped.
 Check `work/slice/progress.csv` when it finishes: every plate must report **49
 tiles sliced, 49 with catalogues, and 0 skips**. A plate reporting fewer has
 failed; the run does not stop for it, because one bad plate should not cost the
-other 633. Per-plate slicer output is kept under `work/slice/slice_logs/`.
+other 641. Per-plate slicer output is kept under `work/slice/slice_logs/`.
 
 > An earlier version of this runner discarded the slicer's stdout, and 195 tiles
 > lost to a grid walking off the array went unnoticed for weeks. That is why the

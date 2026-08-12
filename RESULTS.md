@@ -8,7 +8,10 @@ see [`docs/REPRODUCING.md`](docs/REPRODUCING.md).
 ## Raw detection recall
 
 Fraction of published catalogue rows with a detection within a given radius.
-634 plates, 7×7 tiles per plate, per-plate CRPIX correction applied.
+7×7 tiles per plate, per-plate CRPIX correction applied. Measured over the 634
+plates processed in the first campaign; the footprint has since been extended to
+642 (see [`docs/REPRODUCING.md`](docs/REPRODUCING.md) §2), and these figures will
+be re-derived over the full 642 rather than extrapolated.
 
 | arm | 1″ | 2″ | 3″ | 5″ | 10″ |
 |---|---:|---:|---:|---:|---:|
@@ -44,8 +47,8 @@ doing so requires re-downloading 31,004 cutouts from the STScI service. The
 
 | | plates | median offset |
 |---|---:|---:|
-| needing correction | 207 of 634 (32.6%) | 2.29″ → ~0.09″ |
-| already correct | 427 | 0.02″ |
+| needing correction | 209 of 642 (32.6%) | 2.29″ → ~0.09″ |
+| already correct | 433 | 0.02″ |
 
 Derived from public headers alone, with no catalogue and no fitted parameter —
 see [`docs/DSS_WCS_TWO_SOLUTIONS.md`](docs/DSS_WCS_TWO_SOLUTIONS.md). Its effect

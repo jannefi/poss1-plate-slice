@@ -52,8 +52,8 @@ they miss different things.
 
 DSS headers carry **two independent astrometric solutions**, and common tools
 disagree about which to use. `astropy`/`wcslib` evaluates the GSSS plate
-polynomial; SExtractor reads the explicit FITS `CRPIX`/`CD` keywords. On **207 of
-634** POSS-I plates these disagree by **~2.3 arcsec**.
+polynomial; SExtractor reads the explicit FITS `CRPIX`/`CD` keywords. On **209 of
+642** POSS-I plates these disagree by **~2.3 arcsec**.
 
 The explicit solution is correct. IRSA's full-plate scans carry *only* the GSSS
 solution, so naive slicing inherits the wrong answer on a third of the sky — a
@@ -104,11 +104,11 @@ Deliberate simplifications, listed so they stay auditable rather than silent.
 
 ## Getting the data
 
-**Budget ~750 GB of input data.** Measured over the 634-plate footprint: ~300 GB
+**Budget ~700 GB of input data.** Measured over the 642-plate footprint: 252 GB
 of plate scans, ~6 GB of cutouts, and 427 GB of catalogue mirrors. Working space
-is modest next to that — 14 GB of lean output and 1–8 GB of scratch, because the
+is modest next to that — ~14 GB of lean output and 1–8 GB of scratch, because the
 runner holds one plate on disk at a time. A **detection-only** reproduction that
-skips the veto chain needs the first two items alone, **~306 GB**. Full breakdown
+skips the veto chain needs the first two items alone, **~258 GB**. Full breakdown
 and time budgets in [`docs/REPRODUCING.md`](docs/REPRODUCING.md).
 
 ### DSS1 full-plate scans (required)
