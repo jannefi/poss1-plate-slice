@@ -218,7 +218,12 @@ def main():
     ap.add_argument("--crpix-table", default=None,
                     help="CSV from tools/build_plate_crpix_table.py. Plates it flags get "
                          "CRPIX shifted by -1 in both axes. Without it, ~33%% of plates "
-                         "come out ~2.4\" from Gaia; see the module docstring.")
+                         "come out ~2.4\" from Gaia; see the module docstring. A plate the "
+                         "table does not cover is a fatal error, not a warning.")
+    ap.add_argument("--allow-missing-crpix", action="store_true",
+                    help="Slice plates the CRPIX table does not cover, uncorrected. Only for "
+                         "deliberately working against a partial table -- the resulting tiles "
+                         "may sit ~2.3\" off with nothing downstream to flag it.")
     args = ap.parse_args()
 
     tiles_dir = Path(args.tiles_dir)
@@ -257,19 +262,47 @@ def main():
     # ~2.4" offset against Gaia that CRPIX-1 in both axes removes, while the
     # rest already sit at ~0.1" and would be ruined by the same shift -- so it
     # is looked up per plate and never applied globally.
+    # A plate that the table does not cover is FATAL, not a warning. The older
+    # behaviour printed one line into this plate's own slicer log and carried
+    # on. That line reaches nothing anyone watches -- not progress.csv, not the
+    # console summary, not run.log -- while the tiles come out looking entirely
+    # normal and sitting ~2.3" off, inside the 5" veto radius where no pass/fail
+    # test can see it. It fired six times in the 2026-08-12 run, when the
+    # manifest grew to 642 plates and this table still held 634, and was
+    # harmless only because those six happened to need corrections <0.21".
     crpix_dx = crpix_dy = 0.0
     if args.crpix_table:
         import pandas as pd
         _t = pd.read_csv(args.crpix_table)
         _r = _t[_t.plate.astype(str) == region]
-        if len(_r) and str(_r.status.iloc[0]) == "ok":
+        _why = None
+        if not len(_r):
+            _why = f"{region} is not in {args.crpix_table}"
+        elif str(_r.status.iloc[0]) != "ok":
+            _why = (f"{region} has status={str(_r.status.iloc[0])!r} in "
+                    f"{args.crpix_table}, so no usable correction was measured")
+        if _why and not args.allow_missing_crpix:
+            raise SystemExit(
+                f"[FATAL] {_why}.\n"
+                f"        Slicing it would inherit the GSSS solution, which is ~2.3\" off on\n"
+                f"        about a third of plates -- inside the 5\" veto radius, so nothing\n"
+                f"        downstream would flag it. Extend the table to cover this plate:\n"
+                f"          python3 tools/build_plate_crpix_table.py \\\n"
+                f"              --plate-dir <plate_dir> --archive-tiles <tiles_dir> \\\n"
+                f"              --out {args.crpix_table}\n"
+                f"        (it needs one archive cutout carrying both WCS solutions for this\n"
+                f"        plate), or pass --allow-missing-crpix to slice it uncorrected on\n"
+                f"        purpose."
+            )
+        if _why:
+            print(f"[CRPIX] {_why}")
+            print(f"[CRPIX] {region} sliced UNCORRECTED by explicit --allow-missing-crpix")
+        else:
             crpix_dx = float(_r.delta_x_px.iloc[0])
             crpix_dy = float(_r.delta_y_px.iloc[0])
             if float(_r.scatter_px.iloc[0]) > 0.2:
                 print(f"[CRPIX] {region} scatter {float(_r.scatter_px.iloc[0]):.3f} px "
                       f"-- correction applied but less certain than usual")
-        else:
-            print(f"[CRPIX] {region} absent/unusable in table -- no correction applied")
     print(f"[CRPIX] correction dx={crpix_dx:+.3f} dy={crpix_dy:+.3f} px")
 
     # The grid is laid out in PIXEL space, not in RA/Dec -- see the module
