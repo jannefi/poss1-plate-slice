@@ -180,7 +180,50 @@ python3 tools/run_steps_4_5_parallel.py --tiles-file <tiles> --workers 12
 Set the cache environment variables on **every** step, not just the first — a
 missing one silently falls back to live queries rather than failing.
 
-## 7. Post-processing
+## 7. Aggregate the survivors into S0
+
+The veto chain leaves one survivors CSV per tile. Downstream stages need those
+collected into a single set, with each row carrying the plate it came from.
+
+Build the tile → plate map first. On this route the runner sliced a plate you
+named and stamped `plate_id` onto every row it emitted, so its own output is the
+record of what happened:
+
+```bash
+python3 tools/build_tile_plate_map_from_radec.py \
+    --radec-dir work/slice/radec \
+    --out-csv work/slice/tile_plate_map.csv \
+    --filtered-dir work/slice/filtered
+```
+
+It aborts if any tile maps to two plates, which would mean the run mixed
+sources. Do **not** substitute `tools/build_tile_plate_map_from_headers.py`
+here — that one resolves a genuine ambiguity in the *archive* route, where a
+cutout service picks the plate for you, and it needs tile FITS that this route
+deletes as it goes.
+
+Then aggregate and deduplicate:
+
+```bash
+python3 scripts/build_run_stage_csvs.py \
+    --tiles-root work/slice/filtered \
+    --plate-map-csv work/slice/tile_plate_map.csv \
+    --catalog-name catalogs/sextractor_pass2.filtered.csv \
+    --run-root work/runs --run-tag <tag> \
+    --dedup-tol-arcsec 3.0 --accept-empty-file-as-valid-empty --full
+```
+
+`--accept-empty-file-as-valid-empty` matters more than it sounds: a tile with no
+survivors is written as a 0-byte file, and without the flag those count as
+failures rather than as legitimately empty. In the 642-plate run that is 5,063 of
+31,458 tiles — 16% of the survey.
+
+**Take the footprint from the run's `tile_manifest.csv`, never from the tile_ids
+present in a stage CSV.** Tiles that produced no survivor do not appear in S0 at
+all, so deriving coverage from S0 silently shrinks the denominator and inflates
+any per-area rate computed from it.
+
+## 8. Post-processing
 
 All 16 stages are in `scripts/stage_*_post.py`; chain them with
 `scripts/run_post_stage_chain.sh`. `RESULTS.md` records the chain used for the
@@ -193,7 +236,7 @@ row count and comparability.
 Deduplication tolerance is **3.0″** under raw plate WCS and is *coupled* to
 whether WCS-fix is applied. Read that section before changing either.
 
-## 8. Validate
+## 9. Validate
 
 Two checks, both of which should be run before believing any output.
 
