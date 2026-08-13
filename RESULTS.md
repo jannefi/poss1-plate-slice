@@ -94,13 +94,68 @@ with a warning rather than silently.
 
 ## Candidate catalogue
 
-**Not yet released.** The veto chain and post-processing run is in progress; this
-section will carry the catalogue, the exact stage chain that produced it, and the
-per-stage row counts.
+**S0 — 135,066 rows** over the 642-plate footprint (31,458 tiles, 0 skips).
+Detections surviving the MNRAS filters, the Gaia / PS1 / USNO-B 5″ vetoes, the
+spike mask, and global deduplication at 0.25″.
 
-When it lands, note in advance that three implemented stages — SkyBoT,
-SuperCOSMOS and VSX — were **not executed**, for the reasons and with the
-measured impact given in [`docs/PARAMETERS.md`](docs/PARAMETERS.md).
+Three implemented stages — SkyBoT, SuperCOSMOS and VSX — were **not executed**,
+for the reasons and with the measured impact given in
+[`docs/PARAMETERS.md`](docs/PARAMETERS.md).
+
+### The veto had a bug, and this number is the repaired one
+
+The first build of this catalogue was wrong, and the correction is large enough
+that it would be misleading to present the result without it.
+
+**The defect.** The local-mirror cone query built its HEALPix pixel list with
+`astropy_healpix.cone_search_lonlat`, which returns only pixels whose *centres*
+fall inside the radius. At nside=32 a pixel spans ~1.8° against a ~0.76° veto
+cone, so pixels overlapping the cone with their centre outside were silently
+dropped. The veto catalogue was partial, and real stars in that sky survived
+into the candidate list. Nothing raised: the stage ran, wrote its crossmatch
+file, and reported success. All three vetoes shared the query, so a Gaia leak
+was not caught by PS1 or USNO-B either.
+
+**Where it bites.** Only where the veto cone crosses the HEALPix polar-cap
+boundary at δ = arcsin(2/3) = 41.81°. Below it the pixelisation is a regular
+grid and nothing was lost. Declination predicts where the bug *can* act, never
+where it *did*: 1,503 tiles above that boundary were provably unaffected.
+
+**Scale.** The first build gave 310,700 rows. **2.18× inflation** — 56% of it
+was un-vetoed Gaia stars.
+
+**How it was found, and how late.** By chasing an unexplained excess in the
+candidate count, not by a test. The standing check that would have caught it on
+day one — S0 rows with a Gaia source within 5″ must be ~0, now
+`tools/check_s0_gaia_invariant.py` — was written *afterwards*. On the published
+build it reports 10.02%; on this one, 0.02%.
+
+**How it was repaired.** A post-hoc re-veto of the affected rows was tried first
+and **falsified**: the MNRAS morphology filter derives its FWHM window from the
+population being filtered, so the extra stars narrowed that window and the bug
+*removed* real rows too. No post-process can put those back. The repair is
+therefore a genuine partial re-run of 504 tiles — the tiles measured, one by
+one, to have had a catalogue source in a dropped pixel. Two cheaper scoping
+heuristics were tested and both are wrong: declination (see above), and "the
+re-veto removed nothing from this tile", which would have left 90 corrupt tiles
+in place.
+
+**Independent corroboration.** USNO-B — which played no part in the repair —
+finds POSS-II second-epoch counterparts for **98.94%** of the removed rows
+(7.9× above its own null-shifted chance rate), against **0.09%** of the rows
+that remain (95× below chance). It agrees with the pipeline's own 98.76%
+removal on those tiles to 0.18 points. This signal was present, and recorded as
+unexplained, on earlier runs — an outside instrument flagged the defect long
+before it was diagnosed, and the signal was not followed up.
+
+**Residual uncertainty**, stated rather than smoothed: 90 tiles holding ~504
+rows sit in a class the scoping check flags but the re-veto could not confirm,
+and their contribution could move in either direction.
+
+The fix is [`vasco/local_cache_query.py::_cone_pixels`](vasco/local_cache_query.py)
+— search with a margin wide enough that no overlapping pixel can be missed, then
+prune with an explicit overlap test. `tools/test_cone_query_coverage.py` passes
+against it and **fails** against the old code.
 
 ## What these numbers do and do not say
 
