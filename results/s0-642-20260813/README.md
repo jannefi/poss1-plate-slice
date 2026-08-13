@@ -16,6 +16,7 @@ catalogue — see [`tools/audit_independence.py`](../../tools/audit_independence
 | `RUN_SUMMARY.txt` | — | parameters and counts as the build recorded them |
 | `verification_s0_gaia_invariant.csv.gz` | 25,642 | per-tile Gaia-contamination check |
 | `verification_dedup_radius_sweep.json` | — | the measurement behind the 0.25″ tolerance |
+| `known_astrometry_defect_tiles.csv` | 14 | tiles with a known ~12″ position error — exclude from crossmatches |
 | `SHA256SUMS` | — | integrity of the files as shipped |
 | `SHA256SUMS.uncompressed` | — | integrity of the *contents* |
 
@@ -99,6 +100,41 @@ the code alone:
 **Residual uncertainty**: 90 tiles holding ~504 rows sit in a class the scoping
 check flags but the re-veto could not confirm. Their contribution could move in
 either direction.
+
+## Known defect: 9.8% of rows have unreliable coordinates
+
+**14 tiles carry 13,270 rows (9.8%) whose positions are wrong by roughly 12″.**
+They are listed in `known_astrometry_defect_tiles.csv`. **Exclude them from any
+positional crossmatch**, or you will measure this defect rather than whatever
+you set out to measure.
+
+The detections themselves are real. On the affected tiles they are uniformly
+distributed, sit on genuine flux peaks, and are indistinguishable in FWHM (2.60
+vs 2.61 px) and instrumental magnitude (8.90 vs 8.85) from the rows that behave
+normally. What fails is the coordinate solution: on a control tile the brightest
+Gaia stars land a median **2.24 px** from a flux peak against **7.07 px** for a
+deliberately-shifted null, while on an affected tile they land **7.14 px** away
+against a **7.21 px** null — i.e. the astrometry there is statistically
+indistinguishable from random.
+
+That is also why these rows survived the pipeline in such numbers. The vetoes
+match Gaia, PS1 and USNO-B within 5″; a row displaced by ~12″ matches nothing,
+so nothing removes it. A normal tile yields ~3 rows here, these yield hundreds
+to thousands.
+
+**Ruled out** as causes: the partial-cone veto bug (their cone queries were
+complete), plate-edge geometry (their distance from plate centre matches the
+control distribution), the plate solutions themselves (other tiles on the same
+plates are normal, median 1–13 rows), the tile WCS refit (residual 0.10″,
+identical to healthy plates), and spurious detections. The cause is **not yet
+identified**, and the rows are expected to be **repairable** rather than
+discardable — most are probably ordinary stars that the vetoes will remove once
+the positions are corrected, which would make a corrected catalogue *smaller*
+than this one.
+
+Being explicit because it is the first thing this defect will affect: any
+crossmatch against another catalogue will be depressed by these rows, and the
+size of that effect on your numbers depends on your match radius.
 
 ## What this catalogue is not
 

@@ -26,6 +26,12 @@
 # live in the pack forever. See docs/REPRODUCING.md.
 results/**/*.csv
 !results/**/*.csv.gz
+# Exception, same reasoning as the two /data/ carve-outs above: this is a 14-row
+# metadata file naming the tiles with a known astrometric defect, not a bulk
+# catalogue. It has to travel WITH the data -- a user who crossmatches without it
+# measures our defect instead of their question -- and gzipping a 14-row list to
+# satisfy a rule aimed at 12 MB catalogues would just make it harder to read.
+!results/**/known_astrometry_defect_tiles.csv
 
 __pycache__/
 *.py[codz]
