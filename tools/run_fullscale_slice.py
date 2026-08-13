@@ -114,7 +114,13 @@ def main():
     # ~21% of detections and reintroducing the corner gaps the square-tile
     # design exists to avoid. Nothing errored; the numbers were simply wrong.
     circle = os.environ.get("VASCO_CIRCLE_ARCMIN", "") or "off"
-    print(f"[CONFIG] circle_cut={circle}  crpix_table={args.crpix_table or 'NONE'}  "
+    # WCSFIX defaults to ON inside the pipeline, so its absence from this banner
+    # is exactly how the 642-plate run of 2026-08 ran WCS-fixed on all 642
+    # plates while the docs described raw plate WCS. Print the state; never
+    # leave it to be inferred from a default.
+    wcsfix = "off" if os.environ.get("VASCO_WCSFIX_DISABLE") else "ON"
+    print(f"[CONFIG] circle_cut={circle}  wcsfix={wcsfix}  "
+          f"crpix_table={args.crpix_table or 'NONE'}  "
           f"drop_vignet={os.environ.get('VASCO_LDAC_DROP_VIGNET', '0')}")
     if args.with_vetoes:
         for e in REQUIRED_ENV_VETO:
@@ -123,6 +129,11 @@ def main():
         print("[CONFIG][WARN] a circular cut is ACTIVE -- README documents square "
               "tiles with no 30' cut. Unset VASCO_CIRCLE_ARCMIN unless you mean it.",
               flush=True)
+    if wcsfix == "ON":
+        print("[CONFIG][WARN] WCSFIX is ACTIVE -- deviation #6 documents raw plate "
+              "WCS, and 02_DECISIONS.md pairs WCS-fixed coordinates with a 0.25\" "
+              "dedup, not the 3.0\" in use. Export VASCO_WCSFIX_DISABLE=1 unless "
+              "you mean it.", flush=True)
 
     out = Path(args.out_dir)
     if "tiles_archive" in str(out.resolve()):

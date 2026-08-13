@@ -25,13 +25,81 @@ import numpy as np
 _HP = None  # lazy-loaded
 _DS_CACHE: dict[str, object] = {}  # cache_dir → pyarrow.dataset.Dataset
 
+_HP_NSIDE = 32
+
+# Maximum angular distance from an nside=32 pixel centre to any point inside
+# that pixel: measured at 111.3' over 4e5 random positions, rounded up here.
+# Any pixel overlapping a cone of radius R has its centre within R + this of
+# the cone centre, so a search with this margin provably cannot miss one.
+_PIXEL_MAX_RADIUS_ARCMIN = 120.0
+
 
 def _get_hp():
     global _HP
     if _HP is None:
         from astropy_healpix import HEALPix
-        _HP = HEALPix(nside=32, order="nested")
+        _HP = HEALPix(nside=_HP_NSIDE, order="nested")
     return _HP
+
+
+def _cone_pixels(hp, ra: float, dec: float, radius_arcmin: float) -> list[int]:
+    """Every nside=32 pixel that overlaps the cone.
+
+    `HEALPix.cone_search_lonlat` returns pixels whose *centres* fall inside the
+    radius. At nside=32 a pixel spans ~1.8 deg against a ~0.76 deg veto cone,
+    so a pixel can overlap the cone while its centre sits well outside -- and
+    it is then silently dropped. Its rows are never read, the veto catalogue is
+    partial, and detections there survive with nothing raised and no empty file
+    to notice.
+
+    That is the 2026-08 S0 excess: on affected tiles 45-48% of the Gaia cone was
+    never loaded, leaving ~173k un-vetoed Gaia stars in S0. It switches on above
+    the HEALPix polar-cap boundary (dec +/-41.81), where the pixel tessellation
+    changes, which is why the damage was confined to high declination and varied
+    tile by tile rather than plate by plate.
+
+    Search wide enough that no overlapping pixel can be missed, then prune back
+    with an explicit overlap test so the extra pixels are not actually read.
+    """
+    import astropy.units as u
+
+    cand = hp.cone_search_lonlat(
+        ra * u.deg, dec * u.deg,
+        radius=(radius_arcmin + _PIXEL_MAX_RADIUS_ARCMIN) * u.arcmin)
+    cand = np.unique(np.asarray(cand, dtype=np.int64))
+    if cand.size == 0:
+        return []
+
+    r_deg = radius_arcmin / 60.0
+    cra, cdec = np.deg2rad(ra), np.deg2rad(dec)
+
+    def _sep_deg(lon, lat):
+        a = np.deg2rad(np.asarray(lon, dtype=float))
+        d = np.deg2rad(np.asarray(lat, dtype=float))
+        cs = np.clip(np.sin(d) * np.sin(cdec)
+                     + np.cos(d) * np.cos(cdec) * np.cos(a - cra), -1.0, 1.0)
+        return np.rad2deg(np.arccos(cs))
+
+    # A pixel overlaps the cone iff one of these holds. The three are
+    # exhaustive: if the cone is not wholly inside the pixel (2) and the pixel
+    # is not wholly inside the cone (1), any intersection makes the pixel
+    # boundary cross the cone (3).
+    #
+    # 1) pixel centre inside the cone
+    clon, clat = hp.healpix_to_lonlat(cand)
+    keep = _sep_deg(clon.to_value(u.deg), clat.to_value(u.deg)) <= r_deg
+
+    # 2) cone centre inside the pixel (cone smaller than one pixel)
+    keep |= cand == int(hp.lonlat_to_healpix(ra * u.deg, dec * u.deg))
+
+    # 3) pixel boundary enters the cone. step=32 samples the boundary every
+    #    ~0.055 deg, and the 0.05 deg slack covers grazing contact where the
+    #    chord inside the cone is shorter than the sample spacing.
+    blon, blat = hp.boundaries_lonlat(cand, 32)
+    bsep = _sep_deg(blon.to_value(u.deg), blat.to_value(u.deg))
+    keep |= (bsep <= r_deg + 0.05).any(axis=1)
+
+    return [int(p) for p in cand[keep]]
 
 
 def _get_dataset(cache_dir: str):
@@ -61,9 +129,7 @@ def _cone_query(cache_dir: str, ra: float, dec: float, radius_arcmin: float,
     hp = _get_hp()
     ds = _get_dataset(cache_dir)
 
-    pixels = hp.cone_search_lonlat(ra * u.deg, dec * u.deg,
-                                   radius=radius_arcmin * u.arcmin)
-    pixels = [int(p) for p in pixels.tolist()]
+    pixels = _cone_pixels(hp, ra, dec, radius_arcmin)
 
     filt = pc.field("healpix_5").isin(pixels)
     if parquet_filter is not None:

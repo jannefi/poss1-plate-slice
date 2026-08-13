@@ -161,12 +161,17 @@ python3 tools/build_plate_crpix_table.py \
     --plate-dir <plate_dir> --archive-tiles <tiles_dir> \
     --out data/plate_crpix_table.csv
 
-python3 tools/run_fullscale_slice.py \
+tools/run_slice_survey.sh \
     --out-dir work/slice \
     --plate-manifest data/plate_manifest.csv \
     --crpix-table data/plate_crpix_table.csv \
     --workers 12
 ```
+
+Use the wrapper, not `run_fullscale_slice.py` directly: it sets
+`VASCO_WCSFIX_DISABLE=1` and clears `VASCO_CIRCLE_ARCMIN`, both of which change
+the science silently if left to a default. Check the runner's `[CONFIG]` line
+reads `circle_cut=off  wcsfix=off`.
 
 The slice runner is **resumable** — a plate whose output already exists is
 skipped, so an interrupted run continues where it stopped.
@@ -186,7 +191,10 @@ python3 tools/union_parity_fullscale.py \
 |---|---|
 | `tools/slice_plate_tiles.py` | cut tiles from one full-plate scan |
 | `tools/build_plate_crpix_table.py` | per-plate astrometric correction |
+| `tools/run_slice_survey.sh` | **launch the survey** — sets the environment explicitly |
 | `tools/run_fullscale_slice.py` | whole-survey runner, resumable |
+| `tools/check_s0_gaia_invariant.py` | verify the vetoes covered the sky |
+| `tools/test_cone_query_coverage.py` | regression test for the mirror cone query |
 | `tools/union_parity_fullscale.py` | recall against a reference catalogue |
 | `tools/audit_independence.py` | proves no private data, tree and history |
 | `scripts/stage_*_post.py` | 16 post-processing / veto stages |
