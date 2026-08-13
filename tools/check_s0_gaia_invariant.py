@@ -22,6 +22,12 @@ Options:
     --max-tile-frac   fail if any tile exceeds this (default 0.20)
     --max-total-frac  fail if the catalogue overall exceeds this (default 0.02)
     --sample-per-tile cap rows checked per tile, for speed (default 300)
+    --min-tile-rows   exempt tiles with fewer rows from the PER-TILE test
+                      (default 5). One chance match out of 2 rows is 50%, so the
+                      fraction is meaningless there; they still count toward the
+                      overall figure. Without this a clean catalogue fails its
+                      own gate: on the repaired 642 run all 8 tiles over 20%
+                      held 1-4 rows, and no tile with >=5 rows exceeded it.
 """
 from __future__ import annotations
 
@@ -105,6 +111,10 @@ def main() -> int:
     ap.add_argument("--max-tile-frac", type=float, default=0.20)
     ap.add_argument("--max-total-frac", type=float, default=0.02)
     ap.add_argument("--sample-per-tile", type=int, default=300)
+    ap.add_argument("--min-tile-rows", type=int, default=5,
+                    help="Tiles with fewer S0 rows than this are exempt from the "
+                         "PER-TILE fraction test (one chance match out of 2 rows "
+                         "is 50%%). They still count toward the overall fraction.")
     ap.add_argument("--cache-budget-gb", type=float, default=2.0,
                     help="RAM ceiling for the Gaia pixel cache. Pixel sizes vary "
                          "~70x, so this is bounded by bytes rather than by count.")
@@ -152,11 +162,31 @@ def main() -> int:
         print(f"[OUT] {args.out}")
 
     total = n_matched / max(n_checked, 1)
-    bad = df[df.gaia_frac > args.max_tile_frac].sort_values("s0_rows", ascending=False)
+
+    # The per-tile fraction is meaningless on a tile holding a handful of rows:
+    # one chance Gaia coincidence out of 2 rows is 50%, which trips any sane
+    # threshold. Measured on the repaired 642 catalogue, every one of the 8
+    # tiles over 20% held 1-4 rows (21 rows total) while no tile with >=5 rows
+    # exceeded it at all -- so without this guard a clean catalogue FAILs its
+    # own release gate. Small tiles still count toward the overall fraction,
+    # which is the statistic that actually detects the bug this check exists
+    # for; they are only excluded from the per-tile test, and reported so the
+    # exclusion is never silent.
+    small = df[df.s0_rows < args.min_tile_rows]
+    n_small_over = int((small.gaia_frac > args.max_tile_frac).sum())
+    df_tile = df[df.s0_rows >= args.min_tile_rows]
+    bad = df_tile[df_tile.gaia_frac > args.max_tile_frac].sort_values(
+        "s0_rows", ascending=False)
     print(f"\n[RESULT] overall S0 rows with a Gaia source within {MATCH_ARCSEC:.0f}\": "
           f"{100*total:.2f}%  (threshold {100*args.max_total_frac:.2f}%)")
-    print(f"[RESULT] tiles over {100*args.max_tile_frac:.0f}%: {len(bad)} "
-          f"holding {int(bad.s0_rows.sum()):,} S0 rows")
+    print(f"[RESULT] tiles over {100*args.max_tile_frac:.0f}% "
+          f"(among the {len(df_tile):,} with >={args.min_tile_rows} rows): "
+          f"{len(bad)} holding {int(bad.s0_rows.sum()):,} S0 rows")
+    if n_small_over:
+        print(f"[NOTE]   {n_small_over} tile(s) under {args.min_tile_rows} rows "
+              f"exceed the per-tile threshold and are exempt -- too few rows for "
+              f"the fraction to mean anything. They are counted in the overall "
+              f"figure above, which is the statistic that matters.")
     if len(bad):
         print("\n  worst offenders:")
         for _, r in bad.head(15).iterrows():
