@@ -148,7 +148,17 @@ mismatched to your plate set.
 ## 5. Slice the survey
 
 ```bash
+# Local mirrors. Optional -- without them the pipeline queries VizieR/MAST live.
 export VASCO_GAIA_CACHE=... VASCO_PS1_CACHE=... VASCO_USNOB_CACHE=...
+
+# REQUIRED. WCSFIX refits each tile's astrometry against Gaia and defaults to
+# ON, but this pipeline is specified on the raw plate WCS, and the 3.0" dedup in
+# step 7 is only correct for raw coordinates -- WCS-fixed coordinates need 0.25".
+# Leaving this unset silently produces a different catalogue.
+export VASCO_WCSFIX_DISABLE=1
+
+# Must NOT be set: tiles are square here, with no circular catalogue cut.
+unset VASCO_CIRCLE_ARCMIN
 
 python3 tools/run_fullscale_slice.py \
     --out-dir work/slice \
@@ -156,6 +166,14 @@ python3 tools/run_fullscale_slice.py \
     --crpix-table data/plate_crpix_table.csv \
     --workers 12
 ```
+
+**Read the first log lines before letting it run.** They must say
+`circle_cut=off  wcsfix=off`. Both have gone wrong in real runs here: an
+inherited `VASCO_CIRCLE_ARCMIN` cut 106 plates to a 30′ circle, and a missing
+`VASCO_WCSFIX_DISABLE` ran an entire 642-plate campaign WCS-fixed. Neither
+raised an error — the numbers were simply different. That is what the banner is
+for. `tools/run_slice_survey.sh` sets every one of these explicitly and is the
+safer way to launch.
 
 **Resumable** — a plate whose output CSV exists is skipped, so an interrupted run
 continues where it stopped.
@@ -177,8 +195,23 @@ Steps 4-5 apply the cross-match vetoes and the candidate-selection filters.
 python3 tools/run_steps_4_5_parallel.py --tiles-file <tiles> --workers 12
 ```
 
-Set the cache environment variables on **every** step, not just the first — a
-missing one silently falls back to live queries rather than failing.
+Set the environment on **every** step, not just the first — `VASCO_WCSFIX_DISABLE`
+included, since steps 4-5 are where WCSFIX actually runs. A missing cache
+variable silently falls back to live queries rather than failing.
+
+**Verify the vetoes actually covered the sky.** They can be incomplete without
+raising anything, so check the result rather than the logs:
+
+```bash
+VASCO_GAIA_CACHE=... python3 tools/check_s0_gaia_invariant.py \
+    --s0-csv work/slice/runs/<run>/stage_S0.csv
+```
+
+Every surviving row passed a Gaia veto, so almost none of them should have a
+Gaia source within 5″. If the figure is not ~0, the veto did not see that sky —
+whatever the logs say. This check exists because a partial-cone bug in the local
+mirror query once left 56% of a catalogue as un-vetoed Gaia stars, with every
+stage reporting ok. Run it before trusting any candidate count.
 
 ## 7. Aggregate the survivors into S0
 
