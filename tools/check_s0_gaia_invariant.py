@@ -31,7 +31,7 @@ import functools
 import glob
 import os
 import sys
-from collections import defaultdict
+from collections import OrderedDict, defaultdict
 
 import numpy as np
 import pandas as pd
@@ -43,13 +43,41 @@ MATCH_ARCSEC = 5.0
 _HP = HEALPix(nside=32, order="nested")
 
 
-@functools.lru_cache(maxsize=512)
+# Pixel cache bounded by BYTES, not by entry count.
+#
+# This was an lru_cache(maxsize=512), which bounds how many pixels are held but
+# not how big they are -- and nside=32 Gaia pixels vary enormously: the median
+# is ~1 MB on disk while the largest holds 4.29 M sources, 68.6 MB resident as
+# ra+dec float64. 512 of those is 34.3 GB, i.e. more RAM than a typical box has,
+# so a run over crowded sky could take the machine down. Counting bytes makes
+# the ceiling something you choose rather than something the sky chooses.
+_PIX_CACHE: "OrderedDict[tuple[str, int], tuple]" = OrderedDict()
+_PIX_BYTES = 0
+_PIX_BUDGET = 2 * 1024 ** 3  # 2 GiB; override with --cache-budget-gb
+
+
 def _pixel(cache: str, p: int):
+    global _PIX_BYTES
+    key = (cache, p)
+    hit = _PIX_CACHE.get(key)
+    if hit is not None:
+        _PIX_CACHE.move_to_end(key)
+        return hit[0]
+
     files = glob.glob(f"{cache}/parquet/healpix_5={p}/*.parquet")
     if not files:
-        return None
-    df = pd.concat([pd.read_parquet(f, columns=["ra", "dec"]) for f in files])
-    return df.ra.values, df.dec.values
+        val, nbytes = None, 0
+    else:
+        df = pd.concat([pd.read_parquet(f, columns=["ra", "dec"]) for f in files])
+        ra, dec = df.ra.values, df.dec.values
+        val, nbytes = (ra, dec), int(ra.nbytes + dec.nbytes)
+
+    _PIX_CACHE[key] = (val, nbytes)
+    _PIX_BYTES += nbytes
+    while _PIX_BYTES > _PIX_BUDGET and len(_PIX_CACHE) > 1:
+        _, (_, evicted) = _PIX_CACHE.popitem(last=False)
+        _PIX_BYTES -= evicted
+    return val
 
 
 def _gaia_near(cache: str, ra: np.ndarray, dec: np.ndarray, pad_deg: float = 0.6):
@@ -77,7 +105,13 @@ def main() -> int:
     ap.add_argument("--max-tile-frac", type=float, default=0.20)
     ap.add_argument("--max-total-frac", type=float, default=0.02)
     ap.add_argument("--sample-per-tile", type=int, default=300)
+    ap.add_argument("--cache-budget-gb", type=float, default=2.0,
+                    help="RAM ceiling for the Gaia pixel cache. Pixel sizes vary "
+                         "~70x, so this is bounded by bytes rather than by count.")
     args = ap.parse_args()
+
+    global _PIX_BUDGET
+    _PIX_BUDGET = int(args.cache_budget_gb * 1024 ** 3)
 
     cache = os.getenv("VASCO_GAIA_CACHE")
     if not cache:
