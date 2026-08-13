@@ -213,6 +213,37 @@ whatever the logs say. This check exists because a partial-cone bug in the local
 mirror query once left 56% of a catalogue as un-vetoed Gaia stars, with every
 stage reporting ok. Run it before trusting any candidate count.
 
+### If that check fails, re-run — do not try to repair the catalogue
+
+It is tempting to fix a bad veto by re-applying the corrected one to the
+survivors you already have. **That does not work, and the reason is worth
+understanding before you change anything upstream of the filters.**
+
+The morphology gate in `vasco/mnras/filters_mnras.py` applies a 2σ clip to
+`FWHM_IMAGE` and `ELONGATION` whose window is `median ± k·1.4826·MAD` **of the
+population being filtered** — not a fixed threshold. So the rows that reach the
+gate determine which rows the gate keeps. A remainder still full of un-vetoed
+stars is tightly clustered in FWHM, which shrinks the MAD, narrows the window,
+and cuts genuinely broader objects that a correct run would keep.
+
+The consequence: a veto failure does not merely *add* spurious survivors, it
+also *removes* real ones, so the correct catalogue is **not** a subset of the
+broken one and cannot be recovered from it. Measured on one plate here, a
+post-hoc re-veto recovered 80 of the 84 true survivors; the 4 it could not
+recover had passed the veto in both runs and differed only through the clip
+window.
+
+Two practical rules follow:
+
+* **Retain `<tile>/catalogs/sextractor_pass2.csv`.** It is ~5 MB per tile
+  (~158 GB for a full survey) and it is the last point at which the expensive
+  imaging work — slicing, SExtractor, PSFEx — is cheaply reversible. Everything
+  downstream of it (veto, filters, spike mask, dedup) can be redone in hours
+  *given the detections*. Delete the FITS slices, the LDACs and the PSFs if you
+  need the space; keep this file.
+* Treat the filter stage as population-dependent whenever you reason about what
+  a change upstream of it will do.
+
 ## 7. Aggregate the survivors into S0
 
 The veto chain leaves one survivors CSV per tile. Downstream stages need those
