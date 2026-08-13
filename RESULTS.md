@@ -98,13 +98,16 @@ with a warning rather than silently.
 Detections surviving the MNRAS filters, the Gaia / PS1 / USNO-B 5″ vetoes, the
 spike mask, and global deduplication at 0.25″.
 
-**The catalogue file itself is not yet distributed** — this section reports the
-count and the method, not a download. `data/` holds regenerable outputs and is
-not committed (see `.gitignore`), so S0 currently exists only on the machine
-that produced it. Reproducing it end to end from public inputs is documented in
-[`docs/REPRODUCING.md`](docs/REPRODUCING.md), but that is days of compute rather
-than a substitute for publishing the file, and a candidate list nobody can
-obtain is not a released catalogue. Distribution is a separate decision.
+**Released**: [`results/s0-642-20260813/`](results/s0-642-20260813/) — the
+catalogue gzipped, the tile manifest, the per-tile Gaia-contamination ledger and
+the dedup sweep that justify the numbers below, and two hash manifests. Its
+[README](results/s0-642-20260813/README.md) carries the method, the caveats and
+the bug disclosure, so the folder stands alone if it is ever separated from this
+page.
+
+Cite the **uncompressed** content hash, not the `.gz` one — gzip output is not
+reproducible across implementations. `stage_S0.csv` is
+`9c788c30cd7c9c16ef99d3b6184a0aca27c385bf057f0b10229d879438d4bc73`.
 
 Three implemented stages — SkyBoT, SuperCOSMOS and VSX — were **not executed**,
 for the reasons and with the measured impact given in
