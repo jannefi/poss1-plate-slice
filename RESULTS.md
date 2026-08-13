@@ -98,6 +98,14 @@ with a warning rather than silently.
 Detections surviving the MNRAS filters, the Gaia / PS1 / USNO-B 5″ vetoes, the
 spike mask, and global deduplication at 0.25″.
 
+**The catalogue file itself is not yet distributed** — this section reports the
+count and the method, not a download. `data/` holds regenerable outputs and is
+not committed (see `.gitignore`), so S0 currently exists only on the machine
+that produced it. Reproducing it end to end from public inputs is documented in
+[`docs/REPRODUCING.md`](docs/REPRODUCING.md), but that is days of compute rather
+than a substitute for publishing the file, and a candidate list nobody can
+obtain is not a released catalogue. Distribution is a separate decision.
+
 Three implemented stages — SkyBoT, SuperCOSMOS and VSX — were **not executed**,
 for the reasons and with the measured impact given in
 [`docs/PARAMETERS.md`](docs/PARAMETERS.md).
