@@ -1,0 +1,18 @@
+run_dir: /srv/vasco/vasco60/merged_corrected_20260813/runs/corrected642-dedup025-20260813
+mode: full
+tiles_scanned: 31458
+tiles_delta_skipped: 0
+tiles_processed: 31458
+S0_rows_raw: 142357
+S0_rows_unique_src_id: 142357
+S0_src_id_duplicates_dropped: 0
+dedup_enabled: True
+dedup_method: global angular_sep <= 0.250" (no plate_id partition; XYZ spatial hash; deterministic rep: src_id)
+dedup_rows: 135066 (dropped=7291)
+final_rows_for_stage_and_uploads: 135066 (dedup set)
+plate_map_csv: /srv/vasco/vasco60/fullscale_veto/tile_plate_map.csv
+master_csv: source_extractor_final_filtered.csv
+master_dedup_csv: source_extractor_final_filtered__dedup.csv
+stage_csv: stage_S0.csv
+upload_positional: upload_positional.csv
+upload_skybot: (disabled) not produced by this script

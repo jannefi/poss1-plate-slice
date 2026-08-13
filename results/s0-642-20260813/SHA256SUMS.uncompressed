@@ -1,0 +1,7 @@
+# SHA-256 of the DECOMPRESSED contents. These identify the data.
+# The .gz hashes in SHA256SUMS verify the transfer only -- gzip output is
+# not reproducible across implementations, levels, or timestamps.
+# Check with:  zcat <file>.csv.gz | sha256sum
+9c788c30cd7c9c16ef99d3b6184a0aca27c385bf057f0b10229d879438d4bc73  stage_S0.csv
+94c342cd2cc0dbd29171a5096d3d083579001952e0d0a96a1587a50bc9663563  tile_manifest.csv
+486ce8c50b3faaaa4b552e3f0d949ec0cef1ce098707eb18b62da118306b4dc4  verification_s0_gaia_invariant.csv
