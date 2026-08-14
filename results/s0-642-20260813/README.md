@@ -108,10 +108,33 @@ individual Gaia star — every source in the tile moves coherently. The residual
 of ~0.11″ is at the measurement noise of the detections, i.e. the field is
 describing a real plate-scale distortion rather than absorbing per-source offsets.
 
-What is *not* excluded: a coherent tile-wide pull toward Gaia's frame will raise
-Gaia-veto hits across that whole tile relative to the raw solution. This has not
-been quantified. Anyone whose result depends on the Gaia veto's exact rate should
-treat that as an open systematic.
+**This has now been measured, and the circularity does not bite.** The test is
+`tools/wcsfix_veto_bias.py`: rerun the 5″ veto criterion on the same detections
+under raw and refit coordinates, against Gaia *and* against two catalogues the fit
+never saw. Over 250 tiles and 372,957 detections:
+
+| catalogue | role in the fit | raw | refit | Δ | median sep, raw → refit |
+|---|---|---:|---:|---:|---|
+| Gaia | the bootstrap catalogue | 93.25% | 93.26% | **+0.01** | 0.50″ → 0.16″ |
+| PS1 | never seen by the fit | 96.84% | 96.89% | +0.05 | 0.67″ → 0.37″ |
+| USNO-B | never seen by the fit | 96.98% | 97.00% | +0.02 | 0.53″ → 0.27″ |
+
+**Gaia-specific excess: −0.03 points** — Gaia rises *less* than the controls, not
+more. Null-shifted chance rates are unchanged (10.19 → 10.22%, 20.96 → 20.99%,
+10.43 → 10.43%), as they must be if nothing pathological is happening.
+
+The median separation roughly halves against **all three** frames, including the
+two the refit never touched. That is what a real astrometric correction looks
+like; snapping to Gaia would improve Gaia alone.
+
+There is a structural reason the result is this clean: **the veto threshold is 5″
+and the refit displaces sources by ~0.4–0.9″.** A correction an order of magnitude
+below the threshold can only flip membership for sources sitting almost exactly at
+5″. The refit buys astrometric precision; it cannot buy veto decisions.
+
+Caveat: measured on the 504 tiles that retain full per-stage catalogues, δ 41.5 to
+86.6. The argument above is geometric and should not be declination-sensitive, but
+the measurement is not survey-wide.
 
 ### If you want raw plate coordinates
 
