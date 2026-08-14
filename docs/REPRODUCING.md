@@ -151,10 +151,15 @@ mismatched to your plate set.
 # Local mirrors. Optional -- without them the pipeline queries VizieR/MAST live.
 export VASCO_GAIA_CACHE=... VASCO_PS1_CACHE=... VASCO_USNOB_CACHE=...
 
-# REQUIRED. WCSFIX refits each tile's astrometry against Gaia and defaults to
-# ON, but this pipeline is specified on the raw plate WCS, and the 3.0" dedup in
-# step 7 is only correct for raw coordinates -- WCS-fixed coordinates need 0.25".
-# Leaving this unset silently produces a different catalogue.
+# CHOOSE ONE. This flag decides WHICH OF TWO CATALOGUES you build, and the
+# released one is not the variant this document otherwise describes.
+# See "Which coordinates -- and which catalogue you are reproducing" below.
+#
+#   set   -> raw plate WCS.        What steps 6-7 below assume. Dedup at 3.0".
+#   unset -> per-tile Gaia refit.  What results/s0-642-20260813/ IS. Dedup 0.25".
+#
+# The dedup radius in step 7 must match whichever you pick. Mismatching them
+# silently yields a third catalogue that is neither.
 export VASCO_WCSFIX_DISABLE=1
 
 # Must NOT be set: tiles are square here, with no circular catalogue cut.
@@ -167,13 +172,38 @@ python3 tools/run_fullscale_slice.py \
     --workers 12
 ```
 
-**Read the first log lines before letting it run.** They must say
-`circle_cut=off  wcsfix=off`. Both have gone wrong in real runs here: an
-inherited `VASCO_CIRCLE_ARCMIN` cut 106 plates to a 30′ circle, and a missing
-`VASCO_WCSFIX_DISABLE` ran an entire 642-plate campaign WCS-fixed. Neither
-raised an error — the numbers were simply different. That is what the banner is
-for. `tools/run_slice_survey.sh` sets every one of these explicitly and is the
-safer way to launch.
+**Read the first log lines before letting it run.** They must report the
+`circle_cut` and `wcsfix` state you intended. Both have gone wrong in real runs
+here: an inherited `VASCO_CIRCLE_ARCMIN` cut 106 plates to a 30′ circle, and a
+missing `VASCO_WCSFIX_DISABLE` ran an entire 642-plate campaign WCS-fixed.
+Neither raised an error — the numbers were simply different. That is what the
+banner is for. `tools/run_slice_survey.sh` sets every one of these explicitly and
+is the safer way to launch.
+
+### Which coordinates — and which catalogue you are reproducing
+
+**The released catalogue is the WCS-fixed variant.** The 642-plate campaign
+mentioned just above as a cautionary example is
+[`results/s0-642-20260813/`](../results/s0-642-20260813/). Following this document
+with `VASCO_WCSFIX_DISABLE=1` builds the raw-WCS catalogue, which is a legitimate
+and arguably more conservative product — but it is **not** the released 135,066
+rows, and its hash will not match.
+
+| | `VASCO_WCSFIX_DISABLE=1` | unset (default) |
+|---|---|---|
+| coordinates | raw plate WCS + CRPIX correction | plus a per-tile degree-2 refit against proper-motion-propagated Gaia |
+| dedup tolerance (step 7) | 3.0″ | 0.25″ |
+| matches the release | no | **yes** |
+
+The refit displaces released rows by a median ~0.85″ (p90 2.33″, max 5.29″), so
+the two variants are not interchangeable for positional work. It also means Gaia
+informs the astrometry and is then the first veto; the release README's
+"The coordinates carry a Gaia refit" section sets out how far that circularity
+reaches and what has not been quantified.
+
+Which one *should* you build? For an independent check of the method, the raw-WCS
+variant, because it removes Gaia from the astrometry entirely. To verify our
+published numbers, the WCS-fixed variant, because that is what we published.
 
 **Resumable** — a plate whose output CSV exists is skipped, so an interrupted run
 continues where it stopped.

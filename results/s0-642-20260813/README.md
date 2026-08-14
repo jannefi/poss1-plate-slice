@@ -22,7 +22,11 @@ catalogue — see [`tools/audit_independence.py`](../../tools/audit_independence
 
 `stage_S0.csv` columns: `src_id, tile_id, object_id, ra, dec`. Positions are
 ICRS degrees on the DSS/GSSS plate solution with the per-plate CRPIX correction
-applied (`docs/DSS_WCS_TWO_SOLUTIONS.md`).
+applied (`docs/DSS_WCS_TWO_SOLUTIONS.md`), **and then a per-tile astrometric
+refit against Gaia** — see "The coordinates carry a Gaia refit" below before
+using them for anything positional. That refit is not what
+[`docs/REPRODUCING.md`](../../docs/REPRODUCING.md) specifies, and reading that
+document alone will not reproduce this file.
 
 ### Content hashes — quote these, not the `.gz` ones
 
@@ -58,6 +62,68 @@ provenance: [`docs/PARAMETERS.md`](../../docs/PARAMETERS.md).
 Three implemented stages — SkyBoT, SuperCOSMOS, VSX — were **not run**. In the
 predecessor pipeline they removed ~0.6% of survivors combined, and SkyBoT and
 VSX removed nothing at all.
+
+The veto chain is **Gaia + PS1 + USNO-B**. Solano et al. (2022) use two, Gaia and
+PS1; USNO-B is this project's addition and is a deliberate deviation, not an
+implementation of the paper. It is the third-largest single stage by removals. If
+you are comparing against a paper-parity pipeline, that difference is yours to
+account for.
+
+## The coordinates carry a Gaia refit
+
+**This is a disclosure of a step that should not have run, and did.**
+
+On top of the plate solution, the pipeline applies a per-tile astrometric refit
+("WCSFIX"): it matches that tile's own SExtractor detections to Gaia positions
+propagated to the plate epoch, within 5″, then fits a **degree-2 polynomial**
+correction in each axis, σ-clipped at 1.5″ over two iterations, requiring ≥20 tie
+points (fallback: 15″ bootstrap, degree 1, ≥10 points). A typical tile fits ~6,000
+tie points to a residual σ of ~0.11″, dropping ~2% as outliers.
+
+**It is not cosmetic.** Sampling 33 tiles' released rows, the refit displaces
+positions by a median **0.85″**, p90 **2.33″**, max **5.29″**; 84% move further
+than the 0.25″ dedup tolerance and 15% further than 2″.
+
+**It defaults ON and was left on unintentionally.**
+[`docs/REPRODUCING.md`](../../docs/REPRODUCING.md) specifies this pipeline on the
+*raw* plate WCS and instructs setting `VASCO_WCSFIX_DISABLE=1`. That document even
+records "a missing `VASCO_WCSFIX_DISABLE` ran an entire 642-plate campaign
+WCS-fixed" as a cautionary note. **That campaign is this catalogue.** The
+instruction and the artifact disagreed, and the artifact was released without the
+discrepancy being noticed. It is stated here rather than quietly corrected because
+a dataset whose argument is reproducibility cannot ship instructions that do not
+reproduce it.
+
+**To reproduce this file**, leave `VASCO_WCSFIX_DISABLE` *unset* and keep the
+0.25″ dedup tolerance. Following `REPRODUCING.md` as written gives the raw-WCS
+variant with a 3.0″ tolerance — a legitimate catalogue, but a different one.
+
+### The circularity, and its actual reach
+
+Gaia informs the astrometry and Gaia is then the first veto. Say that plainly.
+
+What limits it: the correction is a **single smooth degree-2 field per tile fitted
+over thousands of tie points**, so it cannot move an individual source onto an
+individual Gaia star — every source in the tile moves coherently. The residual σ
+of ~0.11″ is at the measurement noise of the detections, i.e. the field is
+describing a real plate-scale distortion rather than absorbing per-source offsets.
+
+What is *not* excluded: a coherent tile-wide pull toward Gaia's frame will raise
+Gaia-veto hits across that whole tile relative to the raw solution. This has not
+been quantified. Anyone whose result depends on the Gaia veto's exact rate should
+treat that as an open systematic.
+
+### If you want raw plate coordinates
+
+The per-tile survivor catalogues retained **both** coordinate systems
+(`ALPHA_J2000`/`DELTA_J2000` alongside `RA_corr`/`Dec_corr`), so a raw-WCS-reported
+variant of this catalogue is derivable without re-running anything.
+
+One caveat makes that variant weaker than it looks: **the vetoes matched on the
+refit coordinates**, so which rows are here was decided WCS-fixed. Swapping the
+reported positions does not undo that. A catalogue genuinely free of the refit
+requires a re-run with `VASCO_WCSFIX_DISABLE=1`, because the per-tile detection
+catalogues from this campaign were not retained.
 
 ## This catalogue is a repair. Read this before using it.
 

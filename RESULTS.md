@@ -98,6 +98,17 @@ with a warning rather than silently.
 Detections surviving the MNRAS filters, the Gaia / PS1 / USNO-B 5″ vetoes, the
 spike mask, and global deduplication at 0.25″.
 
+Two deviations from Solano et al. (2022) that anyone comparing pipelines needs up
+front. **The veto chain is three catalogues, not two** — USNO-B is this project's
+addition. And **the coordinates carry a per-tile degree-2 astrometric refit
+against Gaia** ("WCSFIX"), which defaults on and was left on unintentionally:
+[`docs/REPRODUCING.md`](docs/REPRODUCING.md) specifies the raw plate WCS, so
+following it as written builds a *different* catalogue whose hash will not match.
+The refit moves released rows by a median ~0.85″ (p90 2.33″). Both are set out in
+the release [README](results/s0-642-20260813/README.md), including the
+Gaia-in-the-astrometry-then-Gaia-in-the-veto circularity and the part of it that
+has **not** been quantified.
+
 **Released**: [`results/s0-642-20260813/`](results/s0-642-20260813/) — the
 catalogue gzipped, the tile manifest, the per-tile Gaia-contamination ledger and
 the dedup sweep that justify the numbers below, and two hash manifests. Its
