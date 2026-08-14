@@ -1,0 +1,15 @@
+tile_id,plate,dec,rows_before,rows_after,action,wcsfix_sigma_as
+tile_RA24.686_DECp33.529,XE296,33.529,291,291,cleared-never-defective,
+tile_RA306.161_DECp63.564,XE074,63.564,186,186,cleared-never-defective,
+tile_RA304.422_DECp69.130,XE074,69.13,152,152,cleared-never-defective,
+tile_RA308.254_DECp63.651,XE074,63.651,142,142,cleared-never-defective,
+tile_RA305.923_DECp64.493,XE074,64.493,121,121,cleared-never-defective,
+tile_RA305.668_DECp65.422,XE074,65.422,105,105,cleared-never-defective,
+tile_RA357.537_DECp76.572,XE027,76.572,2561,9,repaired,0.4201
+tile_RA356.482_DECp80.423,XE027,80.423,2331,4,repaired,0.4968
+tile_RA3.543_DECp81.107,XE027,81.107,1674,10,repaired,0.5596
+tile_RA359.002_DECp58.820,XE110,58.82,1397,1,repaired,0.2616
+tile_RA358.758_DECp63.848,XE077,63.848,1360,1,repaired,0.3156
+tile_RA349.417_DECp86.548,XE011,86.548,1051,0,repaired,1.1883
+tile_RA11.594_DECp87.035,XE011,87.035,1045,5,repaired,1.4483
+tile_RA359.316_DECp41.799,XE192,41.799,854,0,repaired,0.1053

@@ -1,5 +1,12 @@
 # S0 — POSS-I candidate catalogue, 642 plates (2026-08-13)
 
+> **SUPERSEDED 2026-08-14 by [`../s0-642-20260814/`](../s0-642-20260814/) — do not
+> use this catalogue.** Eight tiles listed below as a known astrometry defect are
+> now repaired: the cause was the tile WCS refit diverging where a tile crosses
+> RA 0 near the pole. Those tiles held 12,273 rows here and hold 30 with correct
+> astrometry, so the current catalogue is 122,820 rows. This folder is kept
+> because its README carries the diagnosis and the two corrections that led to it.
+
 **135,066 rows.** Detections on POSS-I red plates that survive the MNRAS 2022
 filter chain, the Gaia / PS1 / USNO-B 5″ vetoes, the diffraction-spike mask, and
 global deduplication at 0.25″.

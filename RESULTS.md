@@ -94,7 +94,7 @@ with a warning rather than silently.
 
 ## Candidate catalogue
 
-**S0 — 135,066 rows** over the 642-plate footprint (31,458 tiles, 0 skips).
+**S0 — 122,820 rows** over the 642-plate footprint (31,458 tiles, 0 skips).
 Detections surviving the MNRAS filters, the Gaia / PS1 / USNO-B 5″ vetoes, the
 spike mask, and global deduplication at 0.25″.
 
@@ -106,22 +106,27 @@ against Gaia** ("WCSFIX"), which defaults on and was left on unintentionally:
 following it as written builds a *different* catalogue whose hash will not match.
 The refit moves released rows by a median 0.476″ (p90 1.71″, measured over
 311,915 rows). Both are set out in
-the release [README](results/s0-642-20260813/README.md), including the
+the release [README](results/s0-642-20260814/README.md), including the
 Gaia-in-the-astrometry-then-Gaia-in-the-veto circularity — measured against PS1
 and USNO-B controls the refit never saw, and found not to bite: a Gaia-specific
 excess of **−0.03 points**, because a sub-arcsecond correction cannot move a
 source across a 5″ threshold.
 
-**Released**: [`results/s0-642-20260813/`](results/s0-642-20260813/) — the
+**Released**: [`results/s0-642-20260814/`](results/s0-642-20260814/) — the
 catalogue gzipped, the tile manifest, the per-tile Gaia-contamination ledger and
 the dedup sweep that justify the numbers below, and two hash manifests. Its
-[README](results/s0-642-20260813/README.md) carries the method, the caveats and
+[README](results/s0-642-20260814/README.md) carries the method, the caveats and
 the bug disclosure, so the folder stands alone if it is ever separated from this
 page.
 
 Cite the **uncompressed** content hash, not the `.gz` one — gzip output is not
 reproducible across implementations. `stage_S0.csv` is
-`9c788c30cd7c9c16ef99d3b6184a0aca27c385bf057f0b10229d879438d4bc73`.
+`2ff92f2210acb387ef9ef4b88d561595d3883e9aab27065042627272b96590f0`.
+
+The 2026-08-13 build (135,066 rows) is **superseded**: eight tiles carried a
+diverged WCS refit, and repairing it removed 12,273 rows that had survived only
+because an ~11″ position error meant no veto could match them. Those tiles now
+yield 30 rows. `results/s0-642-20260813/` is retained for its diagnosis.
 
 ### How much does the third veto cost?
 

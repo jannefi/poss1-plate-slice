@@ -32,6 +32,7 @@ results/**/*.csv
 # measures our defect instead of their question -- and gzipping a 14-row list to
 # satisfy a rule aimed at 12 MB catalogues would just make it harder to read.
 !results/**/known_astrometry_defect_tiles.csv
+!results/**/repaired_astrometry_tiles.csv
 
 __pycache__/
 *.py[codz]

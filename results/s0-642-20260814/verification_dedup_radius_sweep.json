@@ -1,0 +1,172 @@
+{
+  "input": "/srv/vasco/vasco60/merged_corrected_20260813/runs/corrected642-20260813/source_extractor_final_filtered.csv",
+  "n_rows": 142357,
+  "sweep": [
+    {
+      "radius_arcsec": 0.25,
+      "pairs": 7644,
+      "cross_tile": 7644,
+      "intra_tile": 0,
+      "kept": 135066,
+      "removed": 7291,
+      "max_cluster": 4,
+      "cluster_hist": {
+        "1": 128034,
+        "2": 6875,
+        "3": 55,
+        "4": 102
+      }
+    },
+    {
+      "radius_arcsec": 0.5,
+      "pairs": 7814,
+      "cross_tile": 7814,
+      "intra_tile": 0,
+      "kept": 134907,
+      "removed": 7450,
+      "max_cluster": 4,
+      "cluster_hist": {
+        "1": 127718,
+        "2": 7032,
+        "3": 53,
+        "4": 104
+      }
+    },
+    {
+      "radius_arcsec": 1.0,
+      "pairs": 7864,
+      "cross_tile": 7864,
+      "intra_tile": 0,
+      "kept": 134859,
+      "removed": 7498,
+      "max_cluster": 4,
+      "cluster_hist": {
+        "1": 127623,
+        "2": 7078,
+        "3": 54,
+        "4": 104
+      }
+    },
+    {
+      "radius_arcsec": 1.5,
+      "pairs": 7885,
+      "cross_tile": 7885,
+      "intra_tile": 0,
+      "kept": 134838,
+      "removed": 7519,
+      "max_cluster": 4,
+      "cluster_hist": {
+        "1": 127581,
+        "2": 7099,
+        "3": 54,
+        "4": 104
+      }
+    },
+    {
+      "radius_arcsec": 2.0,
+      "pairs": 7894,
+      "cross_tile": 7894,
+      "intra_tile": 0,
+      "kept": 134829,
+      "removed": 7528,
+      "max_cluster": 4,
+      "cluster_hist": {
+        "1": 127563,
+        "2": 7108,
+        "3": 54,
+        "4": 104
+      }
+    },
+    {
+      "radius_arcsec": 2.5,
+      "pairs": 7899,
+      "cross_tile": 7899,
+      "intra_tile": 0,
+      "kept": 134824,
+      "removed": 7533,
+      "max_cluster": 4,
+      "cluster_hist": {
+        "1": 127553,
+        "2": 7113,
+        "3": 54,
+        "4": 104
+      }
+    },
+    {
+      "radius_arcsec": 3.0,
+      "pairs": 7902,
+      "cross_tile": 7902,
+      "intra_tile": 0,
+      "kept": 134821,
+      "removed": 7536,
+      "max_cluster": 4,
+      "cluster_hist": {
+        "1": 127547,
+        "2": 7116,
+        "3": 54,
+        "4": 104
+      }
+    },
+    {
+      "radius_arcsec": 4.0,
+      "pairs": 7906,
+      "cross_tile": 7905,
+      "intra_tile": 1,
+      "kept": 134817,
+      "removed": 7540,
+      "max_cluster": 4,
+      "cluster_hist": {
+        "1": 127539,
+        "2": 7120,
+        "3": 54,
+        "4": 104
+      }
+    },
+    {
+      "radius_arcsec": 5.0,
+      "pairs": 7907,
+      "cross_tile": 7906,
+      "intra_tile": 1,
+      "kept": 134816,
+      "removed": 7541,
+      "max_cluster": 4,
+      "cluster_hist": {
+        "1": 127537,
+        "2": 7121,
+        "3": 54,
+        "4": 104
+      }
+    },
+    {
+      "radius_arcsec": 6.0,
+      "pairs": 7911,
+      "cross_tile": 7910,
+      "intra_tile": 1,
+      "kept": 134812,
+      "removed": 7545,
+      "max_cluster": 4,
+      "cluster_hist": {
+        "1": 127529,
+        "2": 7125,
+        "3": 54,
+        "4": 104
+      }
+    },
+    {
+      "radius_arcsec": 8.0,
+      "pairs": 7924,
+      "cross_tile": 7914,
+      "intra_tile": 10,
+      "kept": 134799,
+      "removed": 7558,
+      "max_cluster": 4,
+      "cluster_hist": {
+        "1": 127503,
+        "2": 7138,
+        "3": 54,
+        "4": 104
+      }
+    }
+  ],
+  "guidance": "Pick the radius where cross_tile plateaus AND intra_tile is still ~0. intra_tile rising before the plateau means genuine close pairs are being merged and widening is unsafe."
+}
