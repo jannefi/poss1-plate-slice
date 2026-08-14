@@ -120,6 +120,11 @@ sys.path.insert(0, str(REPO))
 from vasco.utils.tile_id import format_tile_id  # noqa: E402
 
 
+# Any tile whose TAN refit lands above this is not written. Healthy tiles sit at
+# 0.04-0.17"; the diverged ones were 29" and 144". Nothing legitimate is near 1".
+MAX_REFIT_RESID_ARCSEC = 1.0
+
+
 def plate_centre(h) -> tuple[float, float]:
     ra = (h["PLTRAH"] + h["PLTRAM"] / 60.0 + h["PLTRAS"] / 3600.0) * 15.0
     sgn = -1.0 if str(h.get("PLTDECSN", "+")).strip().startswith("-") else 1.0
@@ -139,7 +144,20 @@ def clean_tan_header(cut, plate_header, n_fit: int = 25):
     fx, fy = np.meshgrid(np.linspace(0, nx - 1, n_fit), np.linspace(0, ny - 1, n_fit))
     fx, fy = fx.ravel(), fy.ravel()
     sky = cut.wcs.pixel_to_world(fx, fy)
-    fw = fit_wcs_from_points((fx, fy), sky, projection="TAN", sip_degree=None)
+
+    # proj_point is REQUIRED, not cosmetic. Left at its default of "center",
+    # fit_wcs_from_points derives the fiducial from lon.min()/lon.max(), which for
+    # a field crossing RA 0 are both *at* the wrap rather than at the field's
+    # edges -- so the fiducial lands near the meridian instead of on the tile. On
+    # an easy field the fit absorbs that into CD/CRPIX and nothing is lost, which
+    # is why this survived a full survey unnoticed. Near the pole, where the GSSS
+    # solution is genuinely hard to represent as a plain TAN, the fit instead
+    # DIVERGES: two tiles of XE011 came out at median residuals of 143.9" and
+    # 29.2" against ~0.10" for the other 47. Passing the cutout's own centre fixes
+    # both to ~0.10" and changes nothing on any other tile.
+    ctr = cut.wcs.pixel_to_world((nx - 1) / 2.0, (ny - 1) / 2.0)
+    fw = fit_wcs_from_points((fx, fy), sky, proj_point=ctr,
+                             projection="TAN", sip_degree=None)
     resid = fw.pixel_to_world(fx, fy).separation(sky).arcsec
 
     hdr = fw.to_header(relax=True)
@@ -332,7 +350,7 @@ def main():
           f"step {step_px:.1f} px = {step_px * scale / 3600.0:.4f} deg  "
           f"overlap {overlap:.1f}%")
 
-    emitted, resid_all = [], []
+    emitted, resid_all, bad_wcs = [], [], []
     for iy, py in enumerate(cy):
         for ix, px in enumerate(cx):
             ra, dec = [float(v) for v in pw.pixel_to_world_values(px, py)]
@@ -352,6 +370,18 @@ def main():
                 print(f"  [SKIP] {tid}: {exc}")
                 continue
             hdr, rmed, rmax = clean_tan_header(cut, ph)
+            # A tile whose WCS refit did not converge is worse than a missing
+            # tile: its detections are real but land at wrong coordinates, no
+            # veto can match them, and they survive to the catalogue in their
+            # hundreds. Two such tiles contributed 2,096 rows to an earlier
+            # release before anyone looked at a PER-TILE residual. Refuse to
+            # write them.
+            if rmed > MAX_REFIT_RESID_ARCSEC:
+                print(f"  [BAD-WCS] {tid}: TAN refit residual {rmed:.3f}\" "
+                      f"(max {rmax:.3f}\") exceeds {MAX_REFIT_RESID_ARCSEC}\" "
+                      f"-- tile NOT written")
+                bad_wcs.append((tid, rmed, rmax))
+                continue
             # CRPIX_corrected = CRPIX - delta. A WCS whose CRPIX is reduced by d
             # evaluates at pixel p exactly as the original would at p+d, and delta
             # is measured as (where GSSS puts a position) - (where it really is).
@@ -367,7 +397,16 @@ def main():
         print(f"  row {iy+1}/{n} done ({len(emitted)} tiles)", flush=True)
 
     if resid_all:
-        print(f"[WCS]   TAN refit residual: median of medians {np.median(resid_all):.4f}\"")
+        # Report the worst tile alongside the median. The median alone hides a
+        # diverged fit completely -- 47 good tiles average a 143.9" failure down
+        # to 0.1041", which is exactly how this defect reached a release.
+        print(f"[WCS]   TAN refit residual: median of medians "
+              f"{np.median(resid_all):.4f}\"  worst tile {max(resid_all):.4f}\"")
+    if bad_wcs:
+        print(f"[WCS][FAIL] {len(bad_wcs)} tile(s) exceeded "
+              f"{MAX_REFIT_RESID_ARCSEC}\" and were not written:")
+        for tid, rmed, rmax in bad_wcs:
+            print(f"           {tid}  median {rmed:.3f}\"  max {rmax:.3f}\"")
     print(f"[OUT]   {len(emitted)} tiles under {tiles_dir}")
     if args.tiles_file_out:
         Path(args.tiles_file_out).parent.mkdir(parents=True, exist_ok=True)

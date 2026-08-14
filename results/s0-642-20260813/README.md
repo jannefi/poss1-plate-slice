@@ -240,16 +240,40 @@ the median separation to Gaia from 11.31″ to 11.29″, because it bootstraps w
 5″ and cannot find true counterparts at 11″. The damage is already present in the
 tile's base WCS.
 
-**The mechanism is not yet identified.** The obvious candidate — that the
-projection's fiducial point is pinned to the meridian, which the tile headers do
-show (`CRVAL1` sits 0.68–11.6° from the tile centre on all eight, and within
-0.01° on all six cleared) — was tested in isolation and **does not reproduce the
-failure**: a synthetic straddling field with a displaced fiducial still fits to
-0.002–0.022″, and a *non*-straddling field at δ 87 gets a fiducial 1.95° off and
-is likewise fine. So the displaced fiducial is a symptom of the crossing, not the
-thing that breaks the astrometry. This is stated rather than omitted because a
-half-diagnosed defect that a reader can check is more useful than a confident
-wrong story.
+**The mechanism is identified, and fixed in the code (2026-08-14).** The slicer
+refits a clean TAN for each tile with astropy's `fit_wcs_from_points`, and did not
+pass `proj_point`. At its default of `"center"` that function derives the
+projection's fiducial from `lon.min()`/`lon.max()`, which for a field crossing
+RA 0 are both *at* the wrap rather than at the field's edges — so the fiducial
+lands near the meridian instead of on the tile.
+
+On an ordinary field the fit simply absorbs that into `CD`/`CRPIX` and nothing is
+lost, which is why it survived a whole survey unnoticed. Near the pole, where the
+GSSS plate solution is genuinely hard to represent as a plain TAN, the fit
+**diverges** instead. Measured across all 49 tiles of XE011:
+
+| tile | refit residual, as released | with `proj_point` passed |
+|---|---:|---:|
+| RA349.417 δ+86.5 | **143.933″** | **0.082″** |
+| RA11.593 δ+87.0 | **29.165″** | **0.130″** |
+| the other 47 | 0.04–0.16″ | unchanged |
+
+Meridian crossing alone is not sufficient — nine of XE011's tiles cross it and
+only the two nearest the pole diverge. It is the combination.
+
+**The pipeline measured this failure and averaged it away.** The residual was
+computed for every tile at slice time, but only a plate-level `median of medians`
+was ever reported, and 47 healthy tiles reduce a 143.9″ failure to `0.1041″`. The
+slicer now refuses to write any tile whose refit exceeds 1″, and prints the worst
+tile alongside the median.
+
+**These rows are repairable, and this catalogue has not yet been rebuilt.** The
+fix is in the code but the released `stage_S0.csv` is unchanged and still contains
+the 12,273 affected rows — that is why they are still listed as `defect` above.
+Repair means re-slicing the five affected plates and re-running those eight tiles,
+which will move positions by ~11″ and let the vetoes finally act on them. Expect
+the corrected catalogue to be *smaller*: most of these are ordinary stars that
+only survived because nothing could match them.
 
 The detections themselves are real. On the affected tiles they are uniformly
 distributed, sit on genuine flux peaks, and are indistinguishable in FWHM (2.60
