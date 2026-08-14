@@ -16,7 +16,7 @@ catalogue — see [`tools/audit_independence.py`](../../tools/audit_independence
 | `RUN_SUMMARY.txt` | — | parameters and counts as the build recorded them |
 | `verification_s0_gaia_invariant.csv.gz` | 25,642 | per-tile Gaia-contamination check |
 | `verification_dedup_radius_sweep.json` | — | the measurement behind the 0.25″ tolerance |
-| `known_astrometry_defect_tiles.csv` | 14 | tiles with a known ~12″ position error — exclude from crossmatches |
+| `known_astrometry_defect_tiles.csv` | 14 | 8 tiles with a ~11″ position error (`verdict=defect`) plus 6 previously mis-flagged and now cleared |
 | `SHA256SUMS` | — | integrity of the files as shipped |
 | `SHA256SUMS.uncompressed` | — | integrity of the *contents* |
 
@@ -206,36 +206,73 @@ the code alone:
 check flags but the re-veto could not confirm. Their contribution could move in
 either direction.
 
-## Known defect: 9.8% of rows have unreliable coordinates
+## Known defect: 9.1% of rows have unreliable coordinates
 
-**14 tiles carry 13,270 rows (9.8%) whose positions are wrong by roughly 12″.**
-They are listed in `known_astrometry_defect_tiles.csv`. **Exclude them from any
-positional crossmatch**, or you will measure this defect rather than whatever
-you set out to measure.
+**8 tiles carry 12,273 rows (9.1%) whose positions are wrong by roughly 11″.**
+They are the rows marked `verdict=defect` in
+`known_astrometry_defect_tiles.csv`. **Exclude them from any positional
+crossmatch**, or you will measure this defect rather than whatever you set out to
+measure.
+
+**Corrected 2026-08-14.** An earlier version of that file listed **14** tiles and
+13,270 rows, and this section claimed 9.8%. Six of those tiles were mis-flagged:
+they were identified by an anomalous survivor count, which is a symptom of bad
+astrometry but also of other things. Measured directly, their positions are
+**fine** — median separation to Gaia of 0.19–0.33″, against 0.16″ for normal sky.
+Telling users to discard 997 good rows was itself an error, so the file now keeps
+all 14 rows with an explicit `verdict` column (`defect` / `cleared`) and the
+measured separations behind it, rather than silently shrinking.
+
+### What triggers it: the tile crosses RA 0
+
+The eight defective tiles are exactly the eight whose sky footprint **straddles
+the RA 0/360 meridian**. The six cleared ones are exactly the six that do not. The
+separation is complete — 8 of 8 against 0 of 6 — and the severity scales with
+declination, because a 1° tile spans 1/cos(δ) degrees of right ascension and at
+δ 87 that is 19°, making a crossing both likelier and wider.
+
+The per-tile astrometric refit's own fit residual records the same gradient:
+1.30″ at δ 41.8, 2.56″ at δ 58.8, 6.58″ at δ 76.6, and 28.6″ at δ 86.5, against
+0.19–0.48″ on the tiles that do not cross.
+
+**The refit is not the cause — it is a failed rescue.** On these tiles it improves
+the median separation to Gaia from 11.31″ to 11.29″, because it bootstraps within
+5″ and cannot find true counterparts at 11″. The damage is already present in the
+tile's base WCS.
+
+**The mechanism is not yet identified.** The obvious candidate — that the
+projection's fiducial point is pinned to the meridian, which the tile headers do
+show (`CRVAL1` sits 0.68–11.6° from the tile centre on all eight, and within
+0.01° on all six cleared) — was tested in isolation and **does not reproduce the
+failure**: a synthetic straddling field with a displaced fiducial still fits to
+0.002–0.022″, and a *non*-straddling field at δ 87 gets a fiducial 1.95° off and
+is likewise fine. So the displaced fiducial is a symptom of the crossing, not the
+thing that breaks the astrometry. This is stated rather than omitted because a
+half-diagnosed defect that a reader can check is more useful than a confident
+wrong story.
 
 The detections themselves are real. On the affected tiles they are uniformly
 distributed, sit on genuine flux peaks, and are indistinguishable in FWHM (2.60
-vs 2.61 px) and instrumental magnitude (8.90 vs 8.85) from the rows that behave
+vs 2.61 px) and instrumental magnitude (8.90 vs 8.85) from rows that behave
 normally. What fails is the coordinate solution: on a control tile the brightest
 Gaia stars land a median **2.24 px** from a flux peak against **7.07 px** for a
 deliberately-shifted null, while on an affected tile they land **7.14 px** away
-against a **7.21 px** null — i.e. the astrometry there is statistically
+against a **7.21 px** null — the astrometry there is statistically
 indistinguishable from random.
 
-That is also why these rows survived the pipeline in such numbers. The vetoes
-match Gaia, PS1 and USNO-B within 5″; a row displaced by ~12″ matches nothing,
-so nothing removes it. A normal tile yields ~3 rows here, these yield hundreds
-to thousands.
+That is also why these rows survive the pipeline in such numbers. The vetoes match
+Gaia, PS1 and USNO-B within 5″; a row displaced by ~11″ matches nothing, so
+nothing removes it. A normal tile yields ~3 rows here, these yield hundreds to
+thousands.
 
 **Ruled out** as causes: the partial-cone veto bug (their cone queries were
 complete), plate-edge geometry (their distance from plate centre matches the
 control distribution), the plate solutions themselves (other tiles on the same
-plates are normal, median 1–13 rows), the tile WCS refit (residual 0.10″,
-identical to healthy plates), and spurious detections. The cause is **not yet
-identified**, and the rows are expected to be **repairable** rather than
-discardable — most are probably ordinary stars that the vetoes will remove once
-the positions are corrected, which would make a corrected catalogue *smaller*
-than this one.
+plates are normal — the eight come from five plates of 49 tiles each), and
+spurious detections. The rows are expected to be **repairable** rather than
+discardable — most are probably ordinary stars the vetoes will remove once the
+positions are corrected, which would make a corrected catalogue *smaller* than
+this one.
 
 Being explicit because it is the first thing this defect will affect: any
 crossmatch against another catalogue will be depressed by these rows, and the
