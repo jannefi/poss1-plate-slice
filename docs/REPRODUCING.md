@@ -195,8 +195,9 @@ rows, and its hash will not match.
 | dedup tolerance (step 7) | 3.0″ | 0.25″ |
 | matches the release | no | **yes** |
 
-The refit displaces released rows by a median ~0.85″ (p90 2.33″, max 5.29″), so
-the two variants are not interchangeable for positional work. It also means Gaia
+The refit displaces released rows by a median 0.476″ (p90 1.71″, max 6.84″,
+measured over 311,915 rows), so the two variants are not interchangeable for
+positional work. It also means Gaia
 informs the astrometry and is then the first veto; the release README's
 "The coordinates carry a Gaia refit" section sets out how far that circularity
 reaches and what has not been quantified.

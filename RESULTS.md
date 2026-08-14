@@ -104,10 +104,13 @@ addition. And **the coordinates carry a per-tile degree-2 astrometric refit
 against Gaia** ("WCSFIX"), which defaults on and was left on unintentionally:
 [`docs/REPRODUCING.md`](docs/REPRODUCING.md) specifies the raw plate WCS, so
 following it as written builds a *different* catalogue whose hash will not match.
-The refit moves released rows by a median ~0.85″ (p90 2.33″). Both are set out in
+The refit moves released rows by a median 0.476″ (p90 1.71″, measured over
+311,915 rows). Both are set out in
 the release [README](results/s0-642-20260813/README.md), including the
-Gaia-in-the-astrometry-then-Gaia-in-the-veto circularity and the part of it that
-has **not** been quantified.
+Gaia-in-the-astrometry-then-Gaia-in-the-veto circularity — measured against PS1
+and USNO-B controls the refit never saw, and found not to bite: a Gaia-specific
+excess of **−0.03 points**, because a sub-arcsecond correction cannot move a
+source across a 5″ threshold.
 
 **Released**: [`results/s0-642-20260813/`](results/s0-642-20260813/) — the
 catalogue gzipped, the tile manifest, the per-tile Gaia-contamination ledger and
@@ -119,6 +122,39 @@ page.
 Cite the **uncompressed** content hash, not the `.gz` one — gzip output is not
 reproducible across implementations. `stage_S0.csv` is
 `9c788c30cd7c9c16ef99d3b6184a0aca27c385bf057f0b10229d879438d4bc73`.
+
+### How much does the third veto cost?
+
+USNO-B is the deviation most likely to matter to anyone comparing against a
+paper-parity implementation, so its size is measured rather than asserted
+(`tools/paper_parity_filter_arm.py`).
+
+It cannot be read off the released catalogue by subtraction. The vetoes run
+*before* the MNRAS filters, and the morphology σ-clip derives its window from the
+population being filtered — so removing a veto changes the population, changes the
+window, and changes which rows the **filters** cut. The measurement therefore
+re-runs the filter stage from the pre-USNO-B population, letting the clip window be
+re-derived as the pipeline would have derived it.
+
+On the 504 tiles that retain the full per-stage chain, and on which the same code
+path reproduces every tile's actual `filtered.csv` **exactly (504/504)**:
+
+| arm | rows |
+|---|---:|
+| released — Gaia + PS1 + USNO-B | 2,341 |
+| paper parity — Gaia + PS1 | **2,721** |
+| difference | **+380 (+16.2%)** |
+
+Dropping USNO-B **adds 390 rows and removes 10**. Those 10 are the point: a veto
+removal is not purely additive downstream, which is exactly why a subtraction would
+have given the wrong answer.
+
+Note the asymmetry — USNO-B cuts 7.70% at the veto stage (47,043 → 43,420) but the
+finished catalogue grows by 16.2%. The rows it removes are disproportionately
+*good* ones, which is expected: they are real POSS-II second-epoch stars and so
+pass the MNRAS quality gates at well above the average rate.
+
+Caveat: these are the 504 re-run tiles, δ 41.5–86.6, not a survey-wide sample.
 
 Three implemented stages — SkyBoT, SuperCOSMOS and VSX — were **not executed**,
 for the reasons and with the measured impact given in

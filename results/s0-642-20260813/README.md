@@ -80,9 +80,24 @@ correction in each axis, σ-clipped at 1.5″ over two iterations, requiring ≥
 points (fallback: 15″ bootstrap, degree 1, ≥10 points). A typical tile fits ~6,000
 tie points to a residual σ of ~0.11″, dropping ~2% as outliers.
 
-**It is not cosmetic.** Sampling 33 tiles' released rows, the refit displaces
-positions by a median **0.85″**, p90 **2.33″**, max **5.29″**; 84% move further
-than the 0.25″ dedup tolerance and 15% further than 2″.
+**It is not cosmetic.** Measured over all **311,915 survivor rows on 26,115
+tiles** (`tools/measure_wcsfix_shift.py`), the refit displaces positions by:
+
+| p25 | median | p75 | p90 | p95 | p99 | max |
+|---:|---:|---:|---:|---:|---:|---:|
+| 0.234″ | **0.476″** | 0.929″ | 1.708″ | 2.400″ | 3.406″ | 6.835″ |
+
+**73%** of rows move further than the 0.25″ dedup tolerance and **7.6%** further
+than 2″. Bootstrapped over tiles — the right unit, since every row in a tile
+shares one refit — the median is 0.476″ (95% CI 0.426–0.525) and the fraction
+beyond 2″ is 7.58% (95% CI 5.97–9.36).
+
+Two things about that population. It is the per-tile survivor rows *before*
+global deduplication, so sources appearing in several overlapping tiles are
+counted once per tile; those sit near tile edges, where a degree-2 field is
+largest, which may bias the figure slightly high. And the 14 known
+astrometry-defect tiles are excluded (13,304 rows, 4.1%; their own displacement
+is median 0.41″, max 21.31″).
 
 **It defaults ON and was left on unintentionally.**
 [`docs/REPRODUCING.md`](../../docs/REPRODUCING.md) specifies this pipeline on the
@@ -128,9 +143,10 @@ two the refit never touched. That is what a real astrometric correction looks
 like; snapping to Gaia would improve Gaia alone.
 
 There is a structural reason the result is this clean: **the veto threshold is 5″
-and the refit displaces sources by ~0.4–0.9″.** A correction an order of magnitude
-below the threshold can only flip membership for sources sitting almost exactly at
-5″. The refit buys astrometric precision; it cannot buy veto decisions.
+and the refit displaces sources by a median 0.48″, with 99% inside 3.4″.** A
+correction an order of magnitude below the threshold can only flip membership for
+sources sitting almost exactly at 5″. The refit buys astrometric precision; it
+cannot buy veto decisions.
 
 Caveat: measured on the 504 tiles that retain full per-stage catalogues, δ 41.5 to
 86.6. The argument above is geometric and should not be declination-sensitive, but
