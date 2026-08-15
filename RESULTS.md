@@ -128,6 +128,37 @@ diverged WCS refit, and repairing it removed 12,273 rows that had survived only
 because an ~11″ position error meant no veto could match them. Those tiles now
 yield 30 rows. `results/s0-642-20260813/` is retained for its diagnosis.
 
+### The coverage partition (added 2026-08-15)
+
+There is a third deviation from the cutout-based design, and it concerns
+*where* this pipeline looked rather than how it filtered: full-plate slicing
+searches sky on **every** plate that covers it, while a per-position cutout
+pipeline (Solano et al. 2022's design) searches each position once, on the
+plate a DSS service selects. The release now carries
+`primary_plate_flags.csv.gz`, partitioning the catalogue by a
+**zero-parameter rule** — nearest plate centre, validated at **99.04%**
+against 11,727 tiles whose headers record the plate STScI actually served:
+
+| partition | rows |
+|---|---:|
+| whole catalogue | 122,820 |
+| `is_primary` — sky a per-position design searches on the same plate | 68,071 (55.4%) |
+| **single-plate content in multiply-searched sky** | **54,627 (44.5%)** |
+
+The single-plate rows exist on one plate's pixels only — the primary plate's
+own raw detections show nothing within 5″ of them (0.22%, against a 2.68%
+shifted null). A full-plate search finds such content with certainty; a cutout
+design only when its tile grid happens to serve that plate. This is the
+measured explanation for why a full-plate catalogue is larger than a
+cutout-based one at identical filters.
+
+**The flags partition; they do not judge.** Filtering to `is_primary` costs a
+measured **9.1% of matches to the published vanish-possi catalogue** (98 of
+1,072), so both counts are quoted side by side and any filtering is the
+consumer's decision, made with that cost in view. Rule, validation and limits:
+the release [README](results/s0-642-20260814/README.md); tools:
+`tools/build_primary_plate_flags.py`, `tools/check_primary_counterparts.py`.
+
 ### How much does the third veto cost?
 
 USNO-B is the deviation most likely to matter to anyone comparing against a

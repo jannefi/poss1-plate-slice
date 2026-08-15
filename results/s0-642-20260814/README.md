@@ -21,6 +21,7 @@ catalogue — see [`tools/audit_independence.py`](../../tools/audit_independence
 | `verification_dedup_radius_sweep.json` | — | the measurement behind the 0.25″ tolerance |
 | `RUN_SUMMARY.txt` | — | parameters and counts as the build recorded them |
 | `repaired_astrometry_tiles.csv` | 14 | the 8 repaired tiles and the 6 that were never defective |
+| `primary_plate_flags.csv.gz` | 122,820 | per-row coverage partition (added 2026-08-15, see below) |
 | `SHA256SUMS` | — | integrity of the files as shipped |
 | `SHA256SUMS.uncompressed` | — | integrity of the *contents* |
 
@@ -36,6 +37,7 @@ Gaia** — see "The coordinates carry a Gaia refit" below.
 | `stage_S0.csv` | 122,820 | 10,995,353 | `2ff92f2210acb387ef9ef4b88d561595d3883e9aab27065042627272b96590f0` |
 | `tile_manifest.csv` | 31,458 | 3,850,873 | `5dcb90dc5d98550e5a60246aced2b097922a267c69e81f27d45d16a288142a99` |
 | `verification_s0_gaia_invariant.csv` | 25,643 | 864,551 | `18f1ba101b1b6752f36ce20fdc94e31ab8c3639523ee62fb901fc0ea0b0427e2` |
+| `primary_plate_flags.csv` | 122,820 | 11,400,373 | `ae7a599408a8694439b5150bb1320232ad9bdc6d70ce7373cbcd3f58b6b2debf` |
 
 `SHA256SUMS` covers the `.gz` files and verifies the *transfer* only — gzip output
 is not reproducible across implementations, so anyone who repacks or mirrors this
@@ -206,6 +208,58 @@ the released build kept. See `tools/paper_parity_filter_arm.py`.
 **Three implemented stages were not run** — SkyBoT, SuperCOSMOS, VSX. In the
 predecessor pipeline they removed ~0.6% of survivors combined, and SkyBoT and VSX
 removed nothing.
+
+## The coverage partition — `primary_plate_flags.csv.gz` (added 2026-08-15)
+
+Full-plate slicing searches sky on **every** plate that covers it. A
+cutout-based pipeline — the design of Solano et al. (2022) — queries a DSS
+service per position and searches each position once, on the plate the service
+selects. That is a third deviation, and unlike the other two it concerns
+*where* we looked, not how we filtered. This sidecar marks it row by row; the
+catalogue itself is unchanged and its hashes above remain valid.
+
+Per row: `det_plate` (where the detection was made), `primary_plate` (the plate
+a per-position query would serve — nearest plate centre, centres transcribed
+from the GSSS headers into the public manifest; **no fitted or tuned
+parameter**), `is_primary`, `primary_has_det` (the primary plate's own raw
+detections contain a source within 5″ of this row), and `sep_margin` (how far
+the row sits from the plate-selection boundary).
+
+The nearest-centre rule was validated against 11,727 archive tiles whose
+headers record the plate the STScI cutout service actually served:
+**99.04% agreement**, with the ~1% disagreements being near-equidistant
+boundary ties.
+
+| partition | rows |
+|---|---:|
+| whole catalogue | 122,820 |
+| `is_primary` — sky a per-position design searches on the same plate | 68,071 (55.4%) |
+| non-primary with a primary-plate counterpart | 122 |
+| **single-plate content in multiply-searched sky** | **54,627 (44.5%)** |
+
+Those 54,627 rows exist on one plate's pixels only — the primary plate shows
+no raw detection within 5″ (0.22%, against a 2.68% shifted-null; landing below
+the null is expected, since catalogue rows are veto survivors and their sky is
+star-depleted). A full-plate search finds such content with certainty; a
+cutout design finds it only when its tile grid happens to serve that plate —
+for boundary sky that is close to a coin flip (plate-at-tile-centre vs
+plate-at-source-position differ for a measured ~15% of positions), and for
+deep-rim sky effectively never.
+
+**This is a partition, not a quality cut.** Filtering to `is_primary` discards
+real content: measured against the public vanish-possi catalogue, it loses
+**9.1% of R matches** (98 of 1,072). Quote the partition counts side by side;
+anyone filtering should do it with that cost in view.
+
+Two honest limits: 743 rows have a primary plate outside the 634-plate
+detection library, so their `primary_has_det=False` is by absence of data, not
+measurement; and a genuine single-epoch transient on a plate rim would sit in
+the single-plate partition too — the flag says where a row was findable, not
+what it is.
+
+Regenerate with `tools/build_primary_plate_flags.py` followed by
+`tools/check_primary_counterparts.py`; both run from this folder's own files
+plus the public plate manifest and the (regenerable) per-plate detection CSVs.
 
 ## What this catalogue is not
 
