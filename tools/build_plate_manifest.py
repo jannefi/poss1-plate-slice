@@ -43,28 +43,34 @@ GAP = (-5.0, -1.0)
 PLATE_RX = re.compile(r"dss1red_(XE\d+)\.fits$")
 
 
-def plate_centre_dec(header) -> float:
-    """Plate centre declination from the GSSS keywords, in degrees.
+def plate_centre(header) -> tuple[float, float]:
+    """Plate centre (RA, Dec) from the GSSS keywords, in degrees.
 
     PLTDECSN carries the sign as a separate '+'/'-' field, so the sign must be
     applied to the assembled magnitude -- reading PLTDECD alone silently loses
-    it for southern plates.
+    it for southern plates. RA is sexagesimal hours across three keywords.
     """
+    ra = 15.0 * (
+        header.get("PLTRAH", 0)
+        + header.get("PLTRAM", 0) / 60.0
+        + header.get("PLTRAS", 0) / 3600.0
+    )
     sign = -1.0 if str(header.get("PLTDECSN", "+")).strip() == "-" else 1.0
-    return sign * (
+    dec = sign * (
         abs(header.get("PLTDECD", 0))
         + header.get("PLTDECM", 0) / 60.0
         + header.get("PLTDECS", 0) / 3600.0
     )
+    return ra, dec
 
 
-def scan(plate_dir: Path) -> dict[str, float]:
-    out: dict[str, float] = {}
+def scan(plate_dir: Path) -> dict[str, tuple[float, float]]:
+    out: dict[str, tuple[float, float]] = {}
     for f in sorted(plate_dir.glob("dss1red_XE*.fits")):
         m = PLATE_RX.search(f.name)
         if not m:
             continue
-        out[m.group(1)] = plate_centre_dec(fits.getheader(f))
+        out[m.group(1)] = plate_centre(fits.getheader(f))
     if not out:
         sys.exit(f"[FAIL] no dss1red_XE*.fits found under {plate_dir}")
     return out
@@ -78,7 +84,8 @@ def main() -> None:
     ap.add_argument("--dec-min", type=float, default=DEC_MIN)
     args = ap.parse_args()
 
-    decs = scan(args.plate_dir)
+    centres = scan(args.plate_dir)
+    decs = {p: c[1] for p, c in centres.items()}
     selected = sorted(p for p, d in decs.items() if d >= args.dec_min)
 
     # Threshold insensitivity rests on one fact: no plate centre lies inside the
@@ -99,11 +106,15 @@ def main() -> None:
               f"gap, so this is NOT the published footprint rule.")
 
     args.out.parent.mkdir(parents=True, exist_ok=True)
+    # ra_deg/dec_deg are pure header transcription (PLTRAH.., PLTDEC..). They
+    # exist so downstream geometry -- e.g. the primary-plate rule in
+    # tools/build_primary_plate_flags.py -- reads exact centres from a public
+    # artifact instead of re-deriving approximations from tile names.
     with args.out.open("w", newline="") as fh:
         w = csv.writer(fh)
-        w.writerow(["plate_id"])
+        w.writerow(["plate_id", "ra_deg", "dec_deg"])
         for p in selected:
-            w.writerow([p])
+            w.writerow([p, f"{centres[p][0]:.6f}", f"{centres[p][1]:.6f}"])
 
     below = len(decs) - len(selected)
     print(f"[OK] scanned {len(decs)} plates in {args.plate_dir}")
