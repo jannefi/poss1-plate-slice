@@ -251,6 +251,23 @@ The fix is [`vasco/local_cache_query.py::_cone_pixels`](vasco/local_cache_query.
 prune with an explicit overlap test. `tools/test_cone_query_coverage.py` passes
 against it and **fails** against the old code.
 
+## Which stage removes the published sources?
+
+Recall says how many reference sources the pipeline finds; it does not say what
+happens to the rest. [`docs/FUNNEL_ATTRIBUTION.md`](docs/FUNNEL_ATTRIBUTION.md)
+attributes each loss to the exact stage that consumed it, by row identity
+rather than by re-matching. Headline, on a survey-representative 18-plate
+sample: detection inside plate cores is **98.6%**, about a fifth survive to S0
+(consistent with a whole-survey crossmatch at 19.86%), and of the losses
+**83% are the MNRAS 2022 quality filters** against 17% for the whole veto
+chain — two thirds of everything lost is the paper's own `SPREAD_MODEL` and
+extraction gates.
+
+The same page carries a result that needs none of this pipeline to check:
+**nine published reference rows have a Gaia star at their position at the
+plate epoch and none at Gaia's catalogue epoch** — objects that moved rather
+than objects that vanished. Sample sizes there are small and stated as such.
+
 ## What these numbers do and do not say
 
 Recall measures whether this pipeline *finds* the published sources. It says
