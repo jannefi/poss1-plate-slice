@@ -137,14 +137,17 @@ Cone radius, when SkyBoT is run: **60′** (paper).
 | tolerance, raw plate WCS | **3.0″, applied globally** | measured |
 | tolerance, WCS-fixed coordinates | 0.25″ | measured |
 
-> **These two are coupled and must never be decoupled.** The 0.25″ figure is only
-> valid for WCS-fixed coordinates. This pipeline does **not** apply WCS-fix, so
-> each tile carries its own unaligned solution and the same source seen through
-> two overlapping tiles lands arcseconds apart. Applying 0.25″ to unaligned
-> coordinates leaves the great majority of cross-tile duplicates undetected and
-> inflates the candidate count by several percent.
+> **These two are coupled and must never be decoupled.** The 0.25″ figure is
+> only valid for WCS-fixed coordinates, where every tile has been aligned to
+> Gaia. On the raw plate WCS each tile carries its own unaligned solution and
+> the same source seen through two overlapping tiles lands arcseconds apart —
+> applying 0.25″ there leaves the great majority of cross-tile duplicates
+> undetected and inflates the candidate count by several percent.
 >
-> **If you enable WCS-fix, revert the tolerance to 0.25″ in the same change.**
+> The WCS-fix stage defaults **on**, and the released catalogue
+> (`results/s0-642-20260814/`) is WCS-fixed with the 0.25″ tolerance; the
+> raw-WCS variant in `docs/REPRODUCING.md` uses 3.0″. Whichever catalogue you
+> build, **change both settings together.**
 
 Regenerate the justification with `tools/dedup_radius_sweep.py`: cross-tile
 duplicate pairs should rise and then plateau, while intra-tile pairs — the
@@ -158,10 +161,48 @@ before a production run; do not assume the default.
 |---|---|---|
 | per-plate CRPIX correction | per-plate, `data/plate_crpix_table.csv` | measured |
 | scatter rejection | warn above 0.2 px | engineering |
+| per-tile refit distortion | none — pure TAN (`sip_degree=None`) | engineering, see below |
+| refit residual guard | refuse tile above 1.0″ (`MAX_REFIT_RESID_ARCSEC`) | engineering |
 
 Regenerate with `tools/build_plate_crpix_table.py`. Pure header arithmetic — no
 catalogue, no fitting, no tuned threshold. Residual after correction is ~0.09″ on
 plates that need it; see `docs/DSS_WCS_TWO_SOLUTIONS.md`.
+
+### The ~0.1″ TAN representation term — a documented limitation, not an oversight
+
+Each tile's WCS is a plain TAN refit against the plate's GSSS polynomial
+solution (`tools/slice_plate_tiles.py`, `fit_wcs_from_points` with `proj_point`
+at the tile centre). A pure TAN cannot represent the GSSS distortion exactly
+over a ~1° tile, which leaves a **median ~0.10″ systematic (0.04–0.17″ across
+healthy tiles)** in every tile's coordinates relative to the plate solution.
+Fitting SIP distortion terms (`sip_degree=3`) removes it almost entirely
+(~0.0003″, measured during the XE011 divergence diagnosis). The decision **not**
+to do so is deliberate, for three reasons:
+
+1. **SExtractor ignores SIP.** The coordinates every downstream stage consumes
+   (`ALPHAWIN_J2000`/`DELTAWIN_J2000`) are computed from CTYPE/CRPIX/CD alone.
+   SIP terms in the header would improve no catalogue coordinate — they would
+   only make astropy-based readers disagree with the catalogue by ~0.1″, the
+   same tool-divergence class documented in `docs/DSS_WCS_TWO_SOLUTIONS.md`.
+   Realising the gain would require a coordinate-recompute stage after
+   detection, or a refit in the TPV convention that SExtractor does read.
+2. **The pipeline cannot feel 0.1″.** A measured 0.48″ coordinate change moves
+   the 5″ veto rates by ≤0.05 points (the WCS-fix bias measurement in the
+   release README), so ~0.1″ scales to ~0.01 points — tens of rows in a
+   ~123k-row catalogue, below run-to-run noise. The optional Gaia refit fits
+   ~6,000 tie points per tile to ~0.11″ downstream and absorbs any smooth error
+   field anyway. And the GSSS solution itself carries ~1.15″ against Gaia:
+   this term is under a tenth of the error it rides on.
+3. **The term is bounded, not assumed.** The slicer computes the refit residual
+   for every tile and refuses to write any tile above 1.0″, printing the worst
+   tile beside the median. A regression of this representation cannot pass
+   silently.
+
+Revisit only for a science case that needs sub-0.2″ *absolute* astrometry tied
+to the plate solution itself (e.g. plate-epoch proper motions, or
+characterising reference-catalogue coordinate errors at the 0.1″ level). Then
+do it properly: SIP plus a recompute step (or TPV), a full re-run, and its own
+release — not a header-only change.
 
 ## Deviations from Solano et al. (2022)
 
@@ -172,7 +213,11 @@ three is in the README.
 2. **No 30′ circular cut** — full square tiles retained.
 3. **Grid in pixel space, not RA/Dec** — the latter breaks near the pole.
 4. **PS1 rather than USNO-B1.0** for the spike mask.
-5. **No WCS-fix** — coupled to the dedup tolerance above.
+5. **WCS-fix (per-tile Gaia refit) in the released catalogue** — no equivalent
+   in the original; defaults on and was left on unintentionally, disclosed in
+   the release README with the circularity measurement. Coupled to the dedup
+   tolerance above; the raw-WCS build in `docs/REPRODUCING.md` is the
+   paper-faithful variant.
 6. **Per-plate CRPIX correction** — no equivalent in the original; corrects a
    defect specific to slicing full-plate scans.
 7. **SkyBoT, SuperCOSMOS and VSX not executed** — see above. This is the
