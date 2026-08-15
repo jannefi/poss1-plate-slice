@@ -129,10 +129,15 @@ the measured removal was far smaller:
 and PTF. **SkyBoT and VSX each removed nothing whatsoever.**
 
 That is worth stating as a measured zero rather than an absence of evidence: on
-this candidate population, neither the solar-system check nor the variable-star
-check has any yield. Of the three stages omitted here, two are known to cut
-nothing, so the real cost of the omission is SuperCOSMOS alone — of order half a
-percent.
+**that** candidate population, neither the solar-system check nor the
+variable-star check had any yield.
+
+**The "half a percent" reading that used to follow here has been retired.** It
+generalised a 0.5% SuperCOSMOS removal from an 11,027-row morphology-filtered
+pool to this catalogue, where the measured figure is 40.0%. The zeros for SkyBoT
+and VSX may well carry over — SkyBoT's own calibration here found no
+solar-system objects in 393 sampled rows — but the SuperCOSMOS number plainly
+does not.
 
 (A plausible reading of the SkyBoT zero is that moving objects trail on a
 photographic exposure and are already removed by the `ELONGATION < 1.3` gate long
@@ -244,8 +249,10 @@ three is in the README.
    paper-faithful variant.
 6. **Per-plate CRPIX correction** — no equivalent in the original; corrects a
    defect specific to slicing full-plate scans.
-7. **SkyBoT, SuperCOSMOS and VSX not executed** — see above. This is the
-   deviation with the largest effect on the final row count.
+7. **SkyBoT, SuperCOSMOS and VSX not applied** — see above. Measured against
+   this catalogue, SuperCOSMOS alone would remove **40.0%**, making it by a wide
+   margin the deviation with the largest effect on the final row count
+   ([`POSTPROCESS_STAGES.md`](POSTPROCESS_STAGES.md)).
 8. **Full-plate slicing searches sky on every covering plate** — a cutout
    pipeline searches each position once, on the plate a DSS service selects.
    Flagged per row, not removed: `tools/build_primary_plate_flags.py` +

@@ -192,9 +192,15 @@ pass the MNRAS quality gates at well above the average rate.
 
 Caveat: these are the 504 re-run tiles, δ 41.5–86.6, not a survey-wide sample.
 
-Three implemented stages — SkyBoT, SuperCOSMOS and VSX — were **not executed**,
-for the reasons and with the measured impact given in
-[`docs/PARAMETERS.md`](docs/PARAMETERS.md).
+Three implemented stages — SkyBoT, SuperCOSMOS and VSX — were **not applied** to
+this catalogue. Two have since been measured against it at full scale:
+**SuperCOSMOS would remove 40.0%** (49,139 rows) and PTF 2.75%, while SkyBoT is
+bounded at under 0.76% yield and was not run. SuperCOSMOS is therefore by far
+the largest unapplied stage, and it also corroborates the coverage partition
+from the outside — see
+[`docs/POSTPROCESS_STAGES.md`](docs/POSTPROCESS_STAGES.md) for the measurements
+and controls, and [`docs/PARAMETERS.md`](docs/PARAMETERS.md) for the
+parameters.
 
 ### The veto had a bug, and this number is the repaired one
 
