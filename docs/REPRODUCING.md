@@ -324,9 +324,12 @@ All 16 stages are in `scripts/stage_*_post.py`; chain them with
 `scripts/run_post_stage_chain.sh`. `RESULTS.md` records the chain used for the
 published numbers.
 
-**Three stages ship but were not run for those numbers** — SkyBoT, SuperCOSMOS
-and VSX. See [`PARAMETERS.md`](PARAMETERS.md); this materially affects the final
-row count and comparability.
+**Three stages ship but were not applied to those numbers** — SkyBoT,
+SuperCOSMOS and VSX. This materially affects the final row count and
+comparability, and by more than was once assumed: SuperCOSMOS has since been
+measured at **−40.0%** on this catalogue. See
+[`POSTPROCESS_STAGES.md`](POSTPROCESS_STAGES.md) for the measurements and
+[`PARAMETERS.md`](PARAMETERS.md) for the parameters.
 
 Deduplication tolerance is **3.0″** under raw plate WCS and is *coupled* to
 whether WCS-fix is applied. Read that section before changing either.

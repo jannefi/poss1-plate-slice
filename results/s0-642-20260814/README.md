@@ -205,9 +205,13 @@ obtained by subtracting USNO-B's removals — the vetoes run before the filters 
 the σ-clip window is population-derived, so dropping the veto also *removes* rows
 the released build kept. See `tools/paper_parity_filter_arm.py`.
 
-**Three implemented stages were not run** — SkyBoT, SuperCOSMOS, VSX. In the
-predecessor pipeline they removed ~0.6% of survivors combined, and SkyBoT and VSX
-removed nothing.
+**Three implemented stages were not applied** — SkyBoT, SuperCOSMOS, VSX. Two
+have since been measured against *this* catalogue: SuperCOSMOS would remove
+**40.0%** (49,139 rows) and PTF 2.75%, while SkyBoT was not run and is bounded
+at under 0.76% yield. Do not use the predecessor pipeline's ~0.6% figure for
+this catalogue — it was measured on a morphology-filtered pool of 11,027 rows
+and does not transfer. Method and controls:
+[`docs/POSTPROCESS_STAGES.md`](../../docs/POSTPROCESS_STAGES.md).
 
 ## The coverage partition — `primary_plate_flags.csv.gz` (added 2026-08-15)
 

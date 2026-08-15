@@ -208,11 +208,31 @@ All 16 post-processing stages ship, not only those used for the headline result,
 so you can chain them differently and see what changes. `RESULTS.md` records
 which chain produced the published numbers.
 
-**Three of them ship but were not run** for the current results — SkyBoT,
-SuperCOSMOS and VSX, all online services that are impractical at survey scale.
-When these were run in the predecessor pipeline they removed **~0.6% of
-survivors** — and **SkyBoT and VSX each removed nothing at all**, so the real cost
-of the omission is SuperCOSMOS alone. Measured figures in [`docs/PARAMETERS.md`](docs/PARAMETERS.md).
+**Three of them are not applied** to the current results — SkyBoT, SuperCOSMOS
+and VSX. Two have since been measured against this catalogue at full scale, and
+one of them is large:
+
+| stage | applied? | measured effect on this catalogue |
+|---|---|---|
+| SuperCOSMOS | no | **would remove 40.0%** (49,139 rows) |
+| PTF | no | would remove 2.75% |
+| SkyBoT | no | not run; ~23 h for a full pass, yield bounded under 0.76% |
+| VSX | no | not measured here |
+
+The SuperCOSMOS figure deserves the emphasis: an independent digitization of the
+same POSS-I E plates does not confirm two fifths of this catalogue, and that
+result survives testing against coverage, declination, plate-edge vignetting and
+magnitude. It also corroborates the release's coverage partition from the
+outside, failing 60.5% of the single-plate rows against 23.6% of the rest —
+while PTF, testing present-day persistence rather than scan quality, separates
+the two not at all. Method, controls and caveats:
+[`docs/POSTPROCESS_STAGES.md`](docs/POSTPROCESS_STAGES.md).
+
+An earlier version of this section put the cost of these omissions at **~0.6% of
+survivors**, citing the predecessor pipeline. That figure was measured on a pool
+of 11,027 rows already filtered by morphology and shape stages and **does not
+transfer** to the raw post-veto catalogue released here; it is retained, with its
+scope stated, in [`docs/PARAMETERS.md`](docs/PARAMETERS.md).
 
 ## References
 
