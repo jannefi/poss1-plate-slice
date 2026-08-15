@@ -257,6 +257,18 @@ measurement; and a genuine single-epoch transient on a plate rim would sit in
 the single-plate partition too — the flag says where a row was findable, not
 what it is.
 
+**An independent catalogue now says more about that partition.** SuperCOSMOS —
+a separate digitization of the same POSS-I E plates, and one that played no part
+in this rule, which is pure geometry — fails to confirm **60.5%** of the
+single-plate rows against **23.6%** of the `is_primary` rows. PTF, testing
+present-day persistence instead of scan quality, separates the two not at all
+(3.46% vs 3.24%). So the single-plate partition is disproportionately **scan
+artifacts**, not merely sky that one pipeline searched and another did not.
+Method, confound tests and caveats:
+[`docs/POSTPROCESS_STAGES.md`](../../docs/POSTPROCESS_STAGES.md). This changes
+nothing in the catalogue or in this sidecar; it is evidence about how to read
+them.
+
 Regenerate with `tools/build_primary_plate_flags.py` followed by
 `tools/check_primary_counterparts.py`; both run from this folder's own files
 plus the public plate manifest and the (regenerable) per-plate detection CSVs.

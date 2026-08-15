@@ -80,8 +80,8 @@ executed** for the current results, plus one stage of our own (last row).
 
 | stage | script | status |
 |---|---|---|
-| SkyBoT — known solar-system objects | `scripts/stage_skybot_post.py` | not run |
-| SuperCOSMOS — plate-artifact discrimination | `scripts/stage_supercosmos_post.py` | not run |
+| SkyBoT — known solar-system objects | `scripts/stage_skybot_post.py` | not run, **rate + yield bound measured** |
+| SuperCOSMOS — plate-artifact discrimination | `scripts/stage_supercosmos_post.py` | not run, **measured: −40.0%** |
 | VSX — known variable stars | `scripts/stage_vsx_post.py` | not run |
 | Neighbour-plate persistence — second epoch from overlapping plates | `tools/stage_neighbor_persistence.py` | not run, measured |
 
@@ -103,6 +103,15 @@ be built deliberately or not at all.
 and their back ends routinely cancel large submitted jobs, so a full-catalogue
 pass is a project in itself rather than a pipeline step. A local VSX mirror
 exists; SkyBoT and SuperCOSMOS have no practical local equivalent.
+
+> **SuperCOSMOS has since been measured on THIS catalogue and the figure below
+> does not transfer.** Run against all 122,820 released rows it removes
+> **40.0%**, not 0.5% — see [`POSTPROCESS_STAGES.md`](POSTPROCESS_STAGES.md).
+> The two numbers are not in conflict: 0.5% was measured on a pool of 11,027
+> that had already passed morphology and shape stages, while S0 is the raw
+> post-veto population. Read the 0.5% below as a property of that filtered pool
+> only. The same page measures PTF (−2.75%) and reports SkyBoT as not run with
+> a measured per-query rate and a yield upper bound.
 
 **What this means for the numbers — measured, not assumed.** Solano et al. (2022)
 indicate stages of this kind remove of order 3,000-4,000 objects. When they were
