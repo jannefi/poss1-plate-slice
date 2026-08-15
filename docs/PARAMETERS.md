@@ -76,13 +76,28 @@ bright star to be *called* a spike is set by the magnitude-dependent rules.
 ## Stages that ship but are NOT run
 
 Three stages of the published method are **implemented here and deliberately not
-executed** for the current results.
+executed** for the current results, plus one stage of our own (last row).
 
 | stage | script | status |
 |---|---|---|
 | SkyBoT — known solar-system objects | `scripts/stage_skybot_post.py` | not run |
 | SuperCOSMOS — plate-artifact discrimination | `scripts/stage_supercosmos_post.py` | not run |
 | VSX — known variable stars | `scripts/stage_vsx_post.py` | not run |
+| Neighbour-plate persistence — second epoch from overlapping plates | `tools/stage_neighbor_persistence.py` | not run, measured |
+
+**Neighbour-plate persistence (ours, not in the paper — measured 2026-08-15,
+not applied).** POSS-I plates overlap, and neighbouring fields were exposed on
+different nights, so for the 64.8% of catalogue rows inside overlap sky the
+neighbouring plate is a free second epoch. Measured on the released catalogue:
+**298 of 79,548 overlap rows (0.37%) have a detection on another plate within
+5″**, against a 2.87% displaced-null — *below* chance, the expected signature
+of veto-survivor sky. Two consequences, stated in both directions: running the
+stage would remove almost nothing (~0.2% of the catalogue), and the released
+overlap rows are almost never persistent-across-epochs objects. It is not run
+because a row it flags is a source seen at two epochs — removing it changes the
+catalogue's claim from "on the plate and absent from the modern catalogues we
+checked" to an assertion about transience, which is a different catalogue, to
+be built deliberately or not at all.
 
 **Why:** all three are online services. At survey scale they are extremely slow,
 and their back ends routinely cancel large submitted jobs, so a full-catalogue
@@ -222,6 +237,15 @@ three is in the README.
    defect specific to slicing full-plate scans.
 7. **SkyBoT, SuperCOSMOS and VSX not executed** — see above. This is the
    deviation with the largest effect on the final row count.
+8. **Full-plate slicing searches sky on every covering plate** — a cutout
+   pipeline searches each position once, on the plate a DSS service selects.
+   Flagged per row, not removed: `tools/build_primary_plate_flags.py` +
+   `tools/check_primary_counterparts.py` partition the released catalogue by a
+   zero-parameter nearest-centre rule (validated at 99.04% against 11,727
+   recorded STScI plate selections). 44.5% of the released rows are
+   single-plate content in multiply-searched sky. Filtering the partition
+   costs a measured 9.1% of matches to the public vanish-possi catalogue, so
+   both counts are always quoted together.
 
 ## Conventions
 
