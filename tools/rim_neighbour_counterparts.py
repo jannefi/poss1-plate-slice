@@ -206,8 +206,8 @@ def main() -> int:
         dd, _ = rt.query(unit(rim["ra"], rim["dec"]), k=1)
         absent = dd > chord(args.ref_radius_arcsec / 3600.0)
         rim = rim.assign(ref_absent=absent)
-        res.append(report("rim rows ABSENT from the reference (private)", rim[absent]))
-        res.append(report("rim rows PRESENT in the reference (private)", rim[~absent]))
+        res.append(report("rim rows ABSENT from the comparison catalogue", rim[absent]))
+        res.append(report("rim rows PRESENT in the comparison catalogue", rim[~absent]))
         rim.to_csv(out / "rim_rows.csv", index=False)
 
     (out / "summary.json").write_text(json.dumps(
