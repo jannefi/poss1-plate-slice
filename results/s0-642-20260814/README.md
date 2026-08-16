@@ -265,9 +265,20 @@ what it is.
 a separate digitization of the same POSS-I E plates, and one that played no part
 in this rule, which is pure geometry — fails to confirm **60.5%** of the
 single-plate rows against **23.6%** of the `is_primary` rows. PTF, testing
-present-day persistence instead of scan quality, separates the two not at all
-(3.46% vs 3.24%). So the single-plate partition is disproportionately **scan
-artifacts**, not merely sky that one pipeline searched and another did not.
+present-day persistence, separates the two not at all (3.46% vs 3.24%). So the
+two partitions differ in something a second digitization is sensitive to and a
+present-day survey is not.
+
+**What that does *not* establish is that the single-plate rows are mostly
+artifacts.** An earlier version of this paragraph said so; that went beyond the
+evidence and is withdrawn. Measured directly on the pixels (1,500 rows, 150 per
+plate-radius stratum, each with a displaced control), **85.7% of rim rows carry
+>3σ flux at their catalogued position against an 8.3% control**, and in the
+outer rim **72.1% carry such flux while SuperCOSMOS does not confirm them**.
+Non-confirmation is therefore not absence — but it remains either an artifact on
+one glass copy or SuperCOSMOS's own edge behaviour, and a significance test
+cannot tell a dust speck from a star. **Read the 23.6% / 60.5% split as where an
+independent digitization stops agreeing, not as a quality score.**
 Method, confound tests and caveats:
 [`docs/POSTPROCESS_STAGES.md`](../../docs/POSTPROCESS_STAGES.md). This changes
 nothing in the catalogue or in this sidecar; it is evidence about how to read

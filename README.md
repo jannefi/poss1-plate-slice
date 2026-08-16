@@ -206,6 +206,7 @@ python3 tools/union_parity_fullscale.py \
 | `tools/archive_slice_parity.py` | archive-cutout vs plate-slice agreement, both arms |
 | `tools/nondetection_cutouts.py` | side-by-side stamps for unmatched rows |
 | `tools/classify_displaced_misses.py` | same object, neighbour, or nothing there? |
+| `tools/rim_depth_profile.py` | signal and SuperCOSMOS agreement vs plate radius |
 | `tools/audit_independence.py` | proves no private data, tree and history |
 | `scripts/stage_*_post.py` | 16 post-processing / veto stages |
 | `scripts/local_cache/` | build local Gaia / PS1 / USNO-B mirrors |
@@ -234,8 +235,11 @@ same POSS-I E plates does not confirm two fifths of this catalogue, and that
 result survives testing against coverage, declination, plate-edge vignetting and
 magnitude. It also corroborates the release's coverage partition from the
 outside, failing 60.5% of the single-plate rows against 23.6% of the rest —
-while PTF, testing present-day persistence rather than scan quality, separates
-the two not at all. Method, controls and caveats:
+while PTF, testing present-day persistence, separates the two not at all. That
+split marks where an independent digitization stops agreeing; it is **not** a
+quality score for either partition, and a direct check on the pixels shows most
+rim rows carry real flux that SuperCOSMOS nonetheless does not confirm. Method,
+controls and caveats:
 [`docs/POSTPROCESS_STAGES.md`](docs/POSTPROCESS_STAGES.md).
 
 An earlier version of this section put the cost of these omissions at **~0.6% of

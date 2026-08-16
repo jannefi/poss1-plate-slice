@@ -123,15 +123,43 @@ it:
 | single-plate (54,749) | **60.5%** | 3.24% |
 
 **SuperCOSMOS separates the partition sharply; PTF does not separate it at all.**
-That is what should happen if the two measure different things: SuperCOSMOS asks
-whether a row is a real feature on the plate, so an artifact-rich population
-fails it; PTF asks whether a real object is still visible today, which has no
-reason to track scan quality. The rim deficit (37 points) is ten times the
-measured vignetting sensitivity effect (3.8 points).
+That is what should happen if the two measure different things: SuperCOSMOS is a
+cross-scan consistency test, PTF asks whether a real object is still visible
+today. The rim deficit (37 points) is ten times the measured vignetting
+sensitivity effect (3.8 points).
 
-So the single-plate partition is **disproportionately scan artifacts**, and the
-evidence for that comes from a catalogue with no connection to the geometry that
-defined it.
+So the two partitions differ in something SuperCOSMOS is sensitive to and PTF is
+not — which is a real, independently-sourced result about the partition, since
+SuperCOSMOS had no part in the geometry that defined it.
+
+**What it does not establish is *which* of the two cases above dominates.**
+An earlier version of this page concluded the single-plate partition is
+"disproportionately scan artifacts". That went further than the evidence, and
+further than this page's own statement that these measurements do not separate a
+one-copy artifact from a SuperCOSMOS rejection. A direct check on the pixels
+(1,500 catalogue rows, 150 per plate-radius stratum, each paired with a displaced
+control on the same plate — [`tools/rim_depth_profile.py`](../tools/rim_depth_profile.py)):
+
+| | carries >3σ flux on our scan | displaced control | SuperCOSMOS unconfirmed |
+|---|---:|---:|---:|
+| plate interior (78,531 rows) | 100.0% | 7.3% | 20.0% |
+| plate rim (44,289 rows) | 85.7% | 8.3% | 73.2% |
+
+Flux at the catalogued position falls **14 points** from interior to rim while
+non-confirmation rises **53 points**. Were non-confirmation tracking "nothing is
+there", the two would move together. In the outer rim specifically (beyond 3.10°,
+n = 517 sampled), **373 rows — 72.1% — carry >3σ flux on our scan and are not
+confirmed by SuperCOSMOS**.
+
+So non-confirmation is not absence. It remains either an artifact present on one
+glass copy, or SuperCOSMOS's own behaviour at plate edges, and **these data still
+do not separate those two** — a peak-significance test sees a dust speck or an
+emulsion flaw exactly as it sees a star.
+
+**Practical consequence: do not read the 23.6% / 60.5% split as a quality score
+for the two partitions.** It is a measurement of where a second, independent
+digitisation stops agreeing, which is worth having and worth flagging on, but it
+does not license calling either partition mostly spurious.
 
 ## SkyBoT: not run, with a measured rate
 
