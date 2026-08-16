@@ -27,7 +27,7 @@ and local mirrors of Gaia / PS1 / USNO-B. Tools:
 | | reference — archive route | test — this pipeline |
 |---|---|---|
 | catalogue | [`jannefi/vasco60` `final_release_v1` `stage_S0.csv`](https://github.com/jannefi/vasco60/blob/main/releases/final_release_v1/run/stage_S0.csv) | [`results/s0-642-20260814`](../results/s0-642-20260814) |
-| rows | 15,303 | 122,820 |
+| rows | 15,303 (15,254 after a correct dedup, see below) | 122,820 |
 | tiles / plates | 9,566 / 725 | 31,458 / 642 |
 | pixels | STScI cutouts, position-addressed | IRSA plate scans, plate-addressed, sliced locally |
 | tessellation | corners avoided, 30′ circular cut | full square, no circular cut |
@@ -253,6 +253,43 @@ across pixel realisations**, not of image sourcing. Anyone attempting to
 reproduce a POSS-I transient search should expect a candidate list that agrees
 with a previous one at roughly this level even when the underlying detections
 agree at 99.6%.
+
+## Two known defects in the reference run, and what they cost
+
+The reference release predates two fixes made in that repository
+([#7](https://github.com/jannefi/vasco60/pull/7),
+[#8](https://github.com/jannefi/vasco60/pull/8)). Both were checked against this
+comparison rather than assumed harmless.
+
+**The deduplication defect is present and costs 0.32%.** That run deduplicated
+within an assumed plate label (`plate_id + angular_sep <= 0.250"`) and dropped 19
+rows. Running a global dedup over the published catalogue finds **49 duplicate
+pairs, every one of them cross-plate and none same-plate** — so the partitioned
+rule missed all of them. That is 98 rows, 0.32%; the catalogue is properly
+**15,254** rows rather than 15,303.
+
+All 98 fall inside our footprint, 90 matched and 8 unmatched, so collapsing them
+moves candidate recall from **88.61% to 88.60%**. Nothing else in this page
+changes.
+
+Worth recording *why* the same defect cost roughly 10% in this pipeline's own
+history and only 0.32% here: **it scales with tile overlap.** The reference run
+avoided plate corners and applied a 30′ circular cut, so neighbouring tiles
+barely overlap and few sources are seen twice. This pipeline lays 49 full square
+tiles on each plate, deliberately overlapping, which is exactly the condition
+that produces cross-plate duplicates. Same bug, two orders of magnitude apart in
+effect, because the tessellations differ.
+
+**The silent-empty-tile defect did not bite this release.** Its manifest flags
+2,908 of 9,566 tiles (30.4%) as `missing survivors csv`, which reads like the
+failure mode — a failed extraction recorded as a successful empty tile. It is
+not. Sampling those tiles on disk: all carry the complete per-stage chain
+(`pass2`, `wcsfix`, all three `after_*_veto`, `filtered`), their `pass2.csv`
+holds a **median 4,416 raw detections** — *denser* than tiles that did produce
+survivors (2,332) — and every sampled `filtered.csv` has zero data rows. So
+extraction succeeded and there was genuinely nothing to survive. The 31.5%
+zero-survivor rate against this pipeline's 17.1% simply reflects a sparser run:
+2.3 survivors per productive tile against 5.0 here.
 
 ## Limitations
 
