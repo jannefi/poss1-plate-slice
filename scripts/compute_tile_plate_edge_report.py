@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+from __future__ import annotations
+
 # -*- coding: utf-8 -*-
 """
 Compute per-tile plate-edge classification for the current naive-
@@ -48,7 +50,6 @@ from pathlib import Path as _Path
 _sys.path.insert(0, str(_Path(__file__).resolve().parents[1]))
 from vasco.paths import get as _p
 
-from __future__ import annotations
 
 import argparse
 import csv
@@ -132,6 +133,31 @@ def load_tile_wcs_from_json(tile_dir: Path):
 
 # --------------------------- plate core (no WCS) --------------------------
 def load_plate_core_from_json(path: Path):
+    """Plate geometry for the gnomonic projection.
+
+    The tangent point must be the sky position of pixel (cx, cy) -- the centre
+    of the *scan*. PLATERA/PLATEDEC is the centre of the *plate*, and on some
+    scans those are not the same position.
+
+    Measured over all 932 DSS1-red headers (2026-08-16): the two agree to a
+    median 0.062 deg, but **7 plates disagree by ~4.4 deg** -- XE761, XE758,
+    XE733, XE574, XE284, XE543, XE541 -- plus XE304 (1.33 deg) and XE293
+    (1.16 deg). PLATERA/PLATEDEC there agrees exactly with the DSS PLT*
+    plate-solution keywords, so neither value is corrupt; the scan simply is
+    not centred on the plate centre while CNPIX still reads (0, 0).
+
+    Using PLATERA as the tangent point while pairing it with pixel (cx, cy)
+    silently asserts that the scan IS centred there, which put rows on those
+    plates up to 8.8 deg from their nominal centre -- geometrically impossible
+    and previously misread as a plate-attribution defect. It is not one: the
+    tessellation, the tile->plate map and the detections are all correct
+    (those plates' veto survival sits in the 4th-33rd percentile, so their
+    astrometry demonstrably works), and only this projection was wrong.
+
+    So: take the centre from the scan's own WCS, and fall back to
+    PLATERA/PLATEDEC only if no usable WCS can be built. The offset between
+    the two is returned so callers can report it.
+    """
     data, err = robust_json_load(path)
     if data is None:
         return None, "cannot parse plate JSON: " + str(err)
@@ -150,9 +176,32 @@ def load_plate_core_from_json(path: Path):
     cy = nax2 / 2.0
     as_per_px_x = pltscale * (xp_um / 1000.0)
     as_per_px_y = pltscale * (yp_um / 1000.0)
+
+    centre_ra, centre_dec = pl_ra, pl_de
+    centre_source = "PLATERA/PLATEDEC (no usable WCS)"
+    offset_deg = float("nan")
+    try:
+        w = WCS(Header(hdr.items()), relax=True)
+        sky = w.all_pix2world([[cx, cy]], 0)[0]
+        wra, wdec = float(sky[0]), float(sky[1])
+        if math.isfinite(wra) and math.isfinite(wdec):
+            centre_ra, centre_dec = wra, wdec
+            centre_source = "scan WCS at (cx, cy)"
+            d1 = math.radians(pl_de)
+            d2 = math.radians(wdec)
+            dr = math.radians(wra - pl_ra)
+            s = (math.sin((d2 - d1) / 2.0) ** 2
+                 + math.cos(d1) * math.cos(d2) * math.sin(dr / 2.0) ** 2)
+            offset_deg = math.degrees(2.0 * math.asin(math.sqrt(min(max(s, 0.0), 1.0))))
+    except Exception:
+        pass
+
     return {
         "nax1": nax1, "nax2": nax2,
-        "center_ra": pl_ra, "center_dec": pl_de,
+        "center_ra": centre_ra, "center_dec": centre_dec,
+        "plate_ra": pl_ra, "plate_dec": pl_de,
+        "center_source": centre_source,
+        "center_offset_deg": offset_deg,
         "cx": cx, "cy": cy,
         "as_per_px_x": as_per_px_x, "as_per_px_y": as_per_px_y,
     }, ""

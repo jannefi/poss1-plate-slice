@@ -15,7 +15,7 @@ any private catalogue.
 Note the limit applies to plate CENTRES while the survey limit it derives from
 concerns data coverage. That is an interpretive step, and it is harmless here:
 the northern and southern plate sets are separated by a 4.4 deg gap (lowest
-northern centre -0.81, highest southern -5.19), so every threshold in that gap
+northern centre -0.865, highest southern -5.171), so every threshold in that gap
 selects exactly the same 642 plates. The script asserts this, so a future edit
 to DEC_MIN cannot silently change the footprint.
 
@@ -27,6 +27,7 @@ from __future__ import annotations
 
 import argparse
 import csv
+import math
 import re
 import sys
 import warnings
@@ -34,6 +35,7 @@ from pathlib import Path
 
 warnings.filterwarnings("ignore")
 from astropy.io import fits  # noqa: E402
+from astropy.wcs import WCS  # noqa: E402
 
 DEC_MIN = -3.0
 # The empty band between the northern and southern plate sets. Any threshold
@@ -43,12 +45,16 @@ GAP = (-5.0, -1.0)
 PLATE_RX = re.compile(r"dss1red_(XE\d+)\.fits$")
 
 
-def plate_centre(header) -> tuple[float, float]:
-    """Plate centre (RA, Dec) from the GSSS keywords, in degrees.
+def keyword_plate_centre(header) -> tuple[float, float]:
+    """Centre of the PLATE (RA, Dec) from the GSSS keywords, in degrees.
 
     PLTDECSN carries the sign as a separate '+'/'-' field, so the sign must be
     applied to the assembled magnitude -- reading PLTDECD alone silently loses
     it for southern plates. RA is sexagesimal hours across three keywords.
+
+    This is the centre of the glass, NOT the centre of the scan -- see
+    scan_centre. Kept because the two disagree, and the disagreement is worth
+    reporting rather than hiding.
     """
     ra = 15.0 * (
         header.get("PLTRAH", 0)
@@ -64,15 +70,66 @@ def plate_centre(header) -> tuple[float, float]:
     return ra, dec
 
 
+def scan_centre(header) -> tuple[float, float]:
+    """Centre of the SCAN (RA, Dec): the sky position of the middle pixel.
+
+    This is what the manifest must carry. Downstream the manifest answers
+    "which plate covers this position", and that is a question about where the
+    data is, not where the glass was pointed.
+
+    The two are not the same. Across all 932 DSS1-red headers they agree to a
+    median 0.07 deg, but seven plates disagree by ~4.4 deg -- XE761, XE758,
+    XE733, XE574, XE284, XE543, XE541 -- plus XE304, XE293, XE509 and XE880
+    between 0.5 and 1.4 deg. Neither value is corrupt: the keyword centre
+    agrees exactly with the DSS PLT* plate solution, but on those scans the
+    image is not centred on the plate while CNPIX still reads (0, 0).
+    tools/slice_plate_tiles.py already slices on the image centre for exactly
+    this reason; the manifest previously did not, which put a wrong
+    primary_plate on 4.3% of catalogue rows.
+
+    Selecting the footprint on this centre rather than the keyword one leaves
+    the 642-plate set unchanged and the north/south gap empty (lowest northern
+    -0.865, highest southern -5.171), so the reproducibility claim in the
+    module docstring is unaffected -- main() asserts both.
+    """
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        w = WCS(header, relax=True)
+        sky = w.all_pix2world(
+            [[float(header["NAXIS1"]) / 2.0, float(header["NAXIS2"]) / 2.0]], 0
+        )[0]
+    return float(sky[0]), float(sky[1])
+
+
+def _sep_deg(ra1: float, dec1: float, ra2: float, dec2: float) -> float:
+    d1, d2 = math.radians(dec1), math.radians(dec2)
+    s = (math.sin((d2 - d1) / 2.0) ** 2
+         + math.cos(d1) * math.cos(d2) * math.sin(math.radians(ra2 - ra1) / 2.0) ** 2)
+    return math.degrees(2.0 * math.asin(min(1.0, math.sqrt(max(s, 0.0)))))
+
+
 def scan(plate_dir: Path) -> dict[str, tuple[float, float]]:
     out: dict[str, tuple[float, float]] = {}
+    offset: list[tuple[float, str]] = []
     for f in sorted(plate_dir.glob("dss1red_XE*.fits")):
         m = PLATE_RX.search(f.name)
         if not m:
             continue
-        out[m.group(1)] = plate_centre(fits.getheader(f))
+        hdr = fits.getheader(f)
+        sra, sdec = scan_centre(hdr)
+        kra, kdec = keyword_plate_centre(hdr)
+        out[m.group(1)] = (sra, sdec)
+        off = _sep_deg(kra, kdec, sra, sdec)
+        if off > 0.5:
+            offset.append((off, m.group(1)))
     if not out:
         sys.exit(f"[FAIL] no dss1red_XE*.fits found under {plate_dir}")
+    if offset:
+        offset.sort(reverse=True)
+        print(f"[NOTE] {len(offset)} plates whose scan centre is >0.5 deg from the "
+              f"keyword plate centre; the manifest carries the scan centre:")
+        for off, p in offset:
+            print(f"       {p}  {off:.3f} deg")
     return out
 
 
@@ -106,8 +163,10 @@ def main() -> None:
               f"gap, so this is NOT the published footprint rule.")
 
     args.out.parent.mkdir(parents=True, exist_ok=True)
-    # ra_deg/dec_deg are pure header transcription (PLTRAH.., PLTDEC..). They
-    # exist so downstream geometry -- e.g. the primary-plate rule in
+    # ra_deg/dec_deg are SCAN centres -- the sky position of the middle pixel
+    # under the header's own WCS, not the PLTRAH../PLTDEC.. keyword centre. See
+    # scan_centre for why the distinction matters and which plates it moves.
+    # They exist so downstream geometry -- e.g. the primary-plate rule in
     # tools/build_primary_plate_flags.py -- reads exact centres from a public
     # artifact instead of re-deriving approximations from tile names.
     with args.out.open("w", newline="") as fh:

@@ -96,8 +96,8 @@ PTF reproduces the paper's quality gate, `COALESCE(ngoodobs,0) > 0`.
 
 | | inside PTF coverage | match, of covered rows |
 |---|---:|---:|
-| `is_primary` | 82.9% | 3.46% |
-| single-plate | 75.9% | 3.24% |
+| `is_primary` | 82.7% | 3.46% |
+| single-plate | 76.3% | 3.25% |
 | all (73,681) | 80.9% | 3.40% |
 
 **Coverage is measured, not assumed.** PTF is not all-sky: 19.1% of rows lie
@@ -119,13 +119,13 @@ it:
 
 | partition | SuperCOSMOS unconfirmed | PTF match (of covered) |
 |---|---:|---:|
-| `is_primary` (68,071) | **23.6%** | 3.46% |
-| single-plate (54,749) | **60.5%** | 3.24% |
+| `is_primary` (68,152) | **23.3%** | 3.46% |
+| non-primary (54,668) | **60.9%** | 3.25% |
 
 **SuperCOSMOS separates the partition sharply; PTF does not separate it at all.**
 That is what should happen if the two measure different things: SuperCOSMOS is a
 cross-scan consistency test, PTF asks whether a real object is still visible
-today. The rim deficit (37 points) is ten times the measured vignetting
+today. The rim deficit (38 points) is ten times the measured vignetting
 sensitivity effect (3.8 points).
 
 So the two partitions differ in something SuperCOSMOS is sensitive to and PTF is
@@ -156,7 +156,7 @@ glass copy, or SuperCOSMOS's own behaviour at plate edges, and **these data stil
 do not separate those two** — a peak-significance test sees a dust speck or an
 emulsion flaw exactly as it sees a star.
 
-**Practical consequence: do not read the 23.6% / 60.5% split as a quality score
+**Practical consequence: do not read the 23.3% / 60.9% split as a quality score
 for the two partitions.** It is a measurement of where a second, independent
 digitisation stops agreeing, which is worth having and worth flagging on, but it
 does not license calling either partition mostly spurious.

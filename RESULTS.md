@@ -142,24 +142,24 @@ against 11,727 tiles whose headers record the plate STScI actually served:
 | partition | rows |
 |---|---:|
 | whole catalogue | 122,820 |
-| `is_primary` — sky a per-position design searches on the same plate | 68,071 (55.4%) |
-| **single-plate content in multiply-searched sky** | **54,627 (44.5%)** |
+| `is_primary` — sky a per-position design searches on the same plate | 68,152 (55.5%) |
+| **single-plate content in multiply-searched sky** | **54,535 (44.4%)** |
 
 The single-plate rows exist on one plate's pixels only — the primary plate's
-own raw detections show nothing within 5″ of them (0.22%, against a 2.68%
+own raw detections show nothing within 5″ of them (0.24%, against a 2.76%
 shifted null). A full-plate search finds such content with certainty; a cutout
 design only when its tile grid happens to serve that plate. This is the
 measured explanation for why a full-plate catalogue is larger than a
 cutout-based one at identical filters.
 
 **A second partition rule, drawn on plate radius rather than plate identity,
-gives the same answer** — 0.32% against a 2.75% null on 44,289 rows beyond 3.0°
-from their plate centre, with the two nulls agreeing to 0.07 points from
+gives the same answer** — 0.32% against a 2.78% null on 44,289 rows beyond 3.0°
+from their plate centre, with the two nulls agreeing to 0.02 points from
 independently written code. The partition is therefore not an artifact of how it
 was drawn.
 
 **The flags partition; they do not judge.** Filtering to `is_primary` costs a
-measured **9.1% of matches to the published vanish-possi catalogue** (98 of
+measured **6.5% of matches to the published vanish-possi catalogue** (70 of
 1,072), so both counts are quoted side by side and any filtering is the
 consumer's decision, made with that cost in view. Rule, validation and limits:
 the release [README](results/s0-642-20260814/README.md); tools:

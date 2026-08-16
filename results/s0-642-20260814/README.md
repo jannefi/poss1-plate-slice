@@ -222,9 +222,52 @@ selects. That is a third deviation, and unlike the other two it concerns
 *where* we looked, not how we filtered. This sidecar marks it row by row; the
 catalogue itself is unchanged and its hashes above remain valid.
 
+### Corrected 2026-08-16 — plate centres now come from the scan WCS
+
+`primary_plate_flags.csv.gz` was **reissued on 2026-08-16 and its hash in
+`SHA256SUMS` changed**. `stage_S0.csv.gz` and every other artifact are
+untouched; the catalogue identity `2ff92f22…b96590f0` is unchanged.
+
+The manifest transcribed plate centres from the GSSS `PLTRAH…/PLTDEC…`
+keywords. Those give the centre of the *plate*; what the rule needs is the
+centre of the *scan*, and on eleven of the 932 DSS1-red scans the two are not
+the same place — seven by ~4.4° (XE761, XE758, XE733, XE574, XE284, XE543,
+XE541), then XE304, XE293 and XE880 by 0.9–1.3°. On those the image is not
+centred on the plate while `CNPIX` still reads (0, 0). Separately, **XE509**
+fails the other way: its `PLTRAH…` keywords disagree with its own `PLATERA`
+by 4.405°, while its WCS agrees with `PLATERA`. Both classes are fixed by
+taking the centre from the scan's WCS at the middle pixel, which
+`tools/build_plate_manifest.py` now does.
+
+Nothing about the detections, the tiling or the pipeline was wrong —
+`tools/slice_plate_tiles.py` already sliced on the image centre for exactly
+this reason. Only the manifest, and therefore the partition, used the other
+value. What moved:
+
+| | before | after |
+|---|---:|---:|
+| `is_primary` | 68,071 (55.4%) | **68,152 (55.5%)** |
+| single-plate content | 54,627 (44.5%) | **54,535 (44.4%)** |
+| `primary_plate` changed | — | 5,311 rows (4.3%) |
+| `is_primary` flipped | — | 4,301 rows (3.5%) |
+| cost of filtering to `is_primary`, in R matches | 9.1% (98/1,072) | **6.5% (70/1,072)** |
+| SuperCOSMOS unconfirmed, `is_primary` vs non-primary | 23.6% / 60.5% | **23.3% / 60.9%** |
+
+The headline is unchanged at 44% single-plate content, the SuperCOSMOS
+separation is slightly **sharper** (38 points, was 37), and filtering costs
+less real content than reported. Two further notes, so the reissue is not
+oversold: the rebuild also used the current 642-plate raw-detection library
+where the first release used a 634-plate one, which is why no row now has a
+primary plate outside the library (the first release reported 743 that did);
+and the **99.04% validation against 11,727 STScI-served archive tiles has not
+been re-run** against the corrected centres — the figure below predates this
+correction. On the archive tiles reachable here the corrected manifest agrees
+with the served plate substantially better than the old one, so the direction
+is favourable, but treat 99.04% as pending revalidation.
+
 Per row: `det_plate` (where the detection was made), `primary_plate` (the plate
-a per-position query would serve — nearest plate centre, centres transcribed
-from the GSSS headers into the public manifest; **no fitted or tuned
+a per-position query would serve — nearest plate centre, taken from the scan
+WCS and published in the plate manifest; **no fitted or tuned
 parameter**), `is_primary`, `primary_has_det` (the primary plate's own raw
 detections contain a source within 5″ of this row), and `sep_margin` (how far
 the row sits from the plate-selection boundary).
@@ -237,12 +280,12 @@ boundary ties.
 | partition | rows |
 |---|---:|
 | whole catalogue | 122,820 |
-| `is_primary` — sky a per-position design searches on the same plate | 68,071 (55.4%) |
-| non-primary with a primary-plate counterpart | 122 |
-| **single-plate content in multiply-searched sky** | **54,627 (44.5%)** |
+| `is_primary` — sky a per-position design searches on the same plate | 68,152 (55.5%) |
+| non-primary with a primary-plate counterpart | 133 |
+| **single-plate content in multiply-searched sky** | **54,535 (44.4%)** |
 
-Those 54,627 rows exist on one plate's pixels only — the primary plate shows
-no raw detection within 5″ (0.22%, against a 2.68% shifted-null; landing below
+Those 54,535 rows exist on one plate's pixels only — the primary plate shows
+no raw detection within 5″ (0.24%, against a 2.76% shifted-null; landing below
 the null is expected, since catalogue rows are veto survivors and their sky is
 star-depleted). A full-plate search finds such content with certainty; a
 cutout design finds it only when its tile grid happens to serve that plate —
@@ -260,32 +303,34 @@ and test the nearest *other* plate.
 
 | rule | rows | counterpart ≤5″ | rate | shifted null |
 |---|---:|---:|---:|---:|
-| primary plate (`check_primary_counterparts.py`) | 54,749 | 122 | **0.22%** | 2.68% |
-| plate radius > 3.0° (`rim_neighbour_counterparts.py`) | 44,289 | 142 | **0.32%** | 2.75% |
+| primary plate (`check_primary_counterparts.py`) | 54,668 | 133 | **0.24%** | 2.76% |
+| plate radius > 3.0° (`rim_neighbour_counterparts.py`) | 44,289 | 143 | **0.32%** | 2.78% |
 
-The two null controls agree to 0.07 points from independently written code, and
-the rules pick out substantially the same objects — 107 of the 142 also carry
-`primary_has_det`, and 119 of them are non-primary. **So the partition is not an
+The two null controls agree to 0.02 points from independently written code, and
+the rules pick out substantially the same objects — 120 of the 143 also carry
+`primary_has_det`, and the same 120 are non-primary. **So the partition is not an
 artifact of how it was drawn**: whichever way you define "sky a per-position
 design cannot reach", ~99.7% of the rows there have no counterpart on the plate
 such a design would have been served.
 
 **This is a partition, not a quality cut.** Filtering to `is_primary` discards
 real content: measured against the public vanish-possi catalogue, it loses
-**9.1% of R matches** (98 of 1,072). Quote the partition counts side by side;
+**6.5% of R matches** (70 of 1,072). Quote the partition counts side by side;
 anyone filtering should do it with that cost in view.
 
-Two honest limits: 743 rows have a primary plate outside the 634-plate
-detection library, so their `primary_has_det=False` is by absence of data, not
-measurement; and a genuine single-epoch transient on a plate rim would sit in
-the single-plate partition too — the flag says where a row was findable, not
+Two honest limits: `primary_has_det=False` means the primary plate's own raw
+detections were searched and came back empty — every primary plate is now
+inside the 642-plate detection library, so none of it is absence of data (the
+first release said 743 rows fell outside a 634-plate library); and a genuine
+single-epoch transient on a plate rim would sit in the single-plate partition
+too — the flag says where a row was findable, not
 what it is.
 
 **An independent catalogue now says more about that partition.** SuperCOSMOS —
 a separate digitization of the same POSS-I E plates, and one that played no part
-in this rule, which is pure geometry — fails to confirm **60.5%** of the
-single-plate rows against **23.6%** of the `is_primary` rows. PTF, testing
-present-day persistence, separates the two not at all (3.46% vs 3.24%). So the
+in this rule, which is pure geometry — fails to confirm **60.9%** of the
+non-primary rows against **23.3%** of the `is_primary` rows. PTF, testing
+present-day persistence, separates the two not at all (3.46% vs 3.25%). So the
 two partitions differ in something a second digitization is sensitive to and a
 present-day survey is not.
 

@@ -258,9 +258,9 @@ three is in the README.
    Flagged per row, not removed: `tools/build_primary_plate_flags.py` +
    `tools/check_primary_counterparts.py` partition the released catalogue by a
    zero-parameter nearest-centre rule (validated at 99.04% against 11,727
-   recorded STScI plate selections). 44.5% of the released rows are
+   recorded STScI plate selections). 44.4% of the released rows are
    single-plate content in multiply-searched sky. Filtering the partition
-   costs a measured 9.1% of matches to the public vanish-possi catalogue, so
+   costs a measured 6.5% of matches to the public vanish-possi catalogue, so
    both counts are always quoted together.
 
 ## Conventions

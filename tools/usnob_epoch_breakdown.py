@@ -32,11 +32,12 @@ counted on its own as optical evidence, so it is reported separately.
 
 Fully local. Run under a cgroup cap (see tools/catalog_xmatch_local.py).
 """
+from __future__ import annotations
+
 import sys as _sys
 from pathlib import Path as _Path
 _sys.path.insert(0, str(_Path(__file__).resolve().parents[1]))
 from vasco.paths import get as _p
-from __future__ import annotations
 
 import argparse
 import csv

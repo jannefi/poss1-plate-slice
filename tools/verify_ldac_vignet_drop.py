@@ -31,11 +31,12 @@ How to validate
 Exit status is 0 only if every tile passed. The summary prints the worst
 relative difference seen across all tiles and columns; it must be 0.0.
 """
+from __future__ import annotations
+
 import sys as _sys
 from pathlib import Path as _Path
 _sys.path.insert(0, str(_Path(__file__).resolve().parents[1]))
 from vasco.paths import get as _p
-from __future__ import annotations
 
 import argparse
 import random
