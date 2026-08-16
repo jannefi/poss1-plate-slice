@@ -28,13 +28,55 @@ transients)" for the background-density estimate.
 
 So 2° is **their** number, not one we tuned. `--pasp2025` applies exactly it.
 
-### The 2° reading is confirmed independently
+### The 2° reading: 22,314 is what they kept
 
-That 22,314 is the count *retained* inside 2°, not the count discarded — worth
-stating because the sentence can be read either way:
+The sentence admits two readings — 22,314 could be the count retained inside 2°
+or the count discarded outside it — and the difference matters, so it is worth
+pinning down. **It is the retained subset**, and the paper settles this on its
+own terms: the solar-reflection test describes masking "edge transients (>2°
+from plate center)", which places the *discarded* population outside 2°, and
+the background-density passage then counts "the transients within 2° from the
+center". The parenthetical count belongs to the within-2° set. A discarded
+reading would also leave roughly 85,000 transients for a background-density
+estimate explicitly described as avoiding plate edges, which is not coherent.
 
-| source | within-2° count |
-|---|---:|
+Corroboration comes from an independent replication of the VASCO shadow
+statistics — Doherty, *Independent Replication of Nuclear Test-Transient
+Correlations and Earth Shadow Deficit in POSS-I Photographic Plates*,
+[arXiv:2604.00056](https://arxiv.org/abs/2604.00056) — which analysed both the
+full catalogue and a 2° centre-of-plate subset, stating that the restriction
+"eliminates potential edge artifacts from plate scanning". Its supporting code,
+cited in the paper's Data Availability section as
+`github.com/dca-doherty/VASCO-Replication.git`, includes a run over a dataset
+named `SUPERVIKTIG_HELAVASCO_within2deg_CENTER.csv`, described in the script
+header as "pre-filtered to transients within 2 degrees of their plate center",
+whose results file records `Plate field radius: 2.0 deg`, 614 plates and
+`Total transients: 22309` — five rows from the published figure, and
+unambiguously a retained subset.
+
+**Two caveats on that corroboration, both worth stating.** First, the
+repository is no longer publicly accessible: it returns 404 and no Internet
+Archive snapshot exists, so a reader cannot check it today. The paper itself
+remains citable and is the primary reference here. Second, the 22,309 file was
+pre-filtered by the original team rather than recomputed independently, so it
+evidences *what they meant* rather than providing a separate measurement.
+
+### "Within 2° of plate center" is under-specified
+
+Doherty's paper computes its own centre-of-plate subset by "unit-vector
+averaging of source positions per plate" and retains **31,525 transients
+(29.2%)** — against the ~20.7% implied by the published 22,314. The same
+stated criterion therefore yields materially different subsets depending on
+whether "plate center" means **the centre of the plate** or **the centroid of
+the transients found on it**. Those coincide only if the transients are
+distributed symmetrically across the plate, which is precisely what is in
+question when the concern is edge artifacts.
+
+`--pasp2025` uses the plate's actual centre, taken from the scan's WCS. Anyone
+reproducing a published edge-masked count should state which definition they
+used; it is worth roughly nine percentage points of yield here.
+
+---|---:|
 | PASP 2025, published | 22,314 |
 | independent replication, `plate_shadow_coverage_2deg_center.txt` | 22,309 |
 
