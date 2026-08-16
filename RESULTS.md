@@ -274,6 +274,33 @@ The same page carries a result that needs none of this pipeline to check:
 plate epoch and none at Gaia's catalogue epoch** — objects that moved rather
 than objects that vanished. Sample sizes there are small and stated as such.
 
+## Does the image source change the catalogue?
+
+This pipeline slices plate-addressed IRSA scans; the obvious alternative is
+position-addressed archive cutouts.
+[`docs/ARCHIVE_VS_SLICE_PARITY.md`](docs/ARCHIVE_VS_SLICE_PARITY.md) measures
+the difference against an earlier catalogue of ours built the other way
+(15,303 rows, STScI cutouts, 725 plates), one-way and footprint-scoped to
+13,642 rows. The footprints are **identical above dec 0** — 100.0% coverage in
+every band, no geometric edge cases.
+
+**Raw detection agreement is 99.57% at 5″ and 99.93% at 30″.** Of the 58 rows
+unmatched at 5″, cutout inspection accounts for all of them: at most **25 are
+real sources not reproduced (≤0.183%)**, while **27 have no source above 3σ at
+the catalogued position in either run's pixels (0.198%)**. Roughly half the
+residual is reference-side, so image sourcing costs this pipeline essentially
+nothing at the detection stage.
+
+**Candidate agreement is lower, 88.61%**, and that gap is not the image source.
+Read from per-row `reject_reason`, **85.9%** of the removals are the MNRAS
+quality filters against **9.4%** for the veto chain — independently reproducing
+the 83% / 17% split measured above against the unrelated SVO catalogue. The
+cause is threshold sensitivity: the rows this pipeline drops are the rows that
+barely passed the other one, sitting at `SNR_WIN` 31.07 against a gate of 30 at
+the 10th percentile. **88.61% therefore measures how reproducible the MNRAS
+2022 filter chain is across pixel realisations**, not how much the pixels
+differ.
+
 ## What these numbers do and do not say
 
 Recall measures whether this pipeline *finds* the published sources. It says
