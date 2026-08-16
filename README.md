@@ -235,13 +235,20 @@ The SuperCOSMOS figure deserves the emphasis: an independent digitization of the
 same POSS-I E plates does not confirm two fifths of this catalogue, and that
 result survives testing against coverage, declination, plate-edge vignetting and
 magnitude. It also corroborates the release's coverage partition from the
-outside, failing 60.5% of the single-plate rows against 23.6% of the rest —
+outside, failing 60.9% of the non-primary rows against 23.3% of the rest —
 while PTF, testing present-day persistence, separates the two not at all. That
 split marks where an independent digitization stops agreeing; it is **not** a
 quality score for either partition, and a direct check on the pixels shows most
 rim rows carry real flux that SuperCOSMOS nonetheless does not confirm. Method,
 controls and caveats:
 [`docs/POSTPROCESS_STAGES.md`](docs/POSTPROCESS_STAGES.md).
+
+A plate-edge mask is available as an instrument and is applied to nothing:
+`scripts/stage_edge_post_v2.py` records each row's distance from its plate
+centre and from the scanned array's boundary, with a `--pasp2025` preset
+reproducing the 2° criterion Villarroel et al. 2025 apply inside two of their
+own analyses. Measured impact, and why the release is deliberately left
+uncut: [`docs/PLATE_EDGE_MASK.md`](docs/PLATE_EDGE_MASK.md).
 
 An earlier version of this section put the cost of these omissions at **~0.6% of
 survivors**, citing the predecessor pipeline. That figure was measured on a pool
