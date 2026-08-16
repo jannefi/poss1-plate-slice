@@ -72,11 +72,13 @@ Doherty's paper computes its own centre-of-plate subset by "unit-vector
 averaging of source positions per plate" and retains **31,525 transients
 (29.2% of the 107,875 in arXiv:2604.00056)** — against the 20.7% implied by
 PASP's 22,314. The same
-stated criterion therefore yields materially different subsets depending on
+stated criterion therefore selects materially different subsets depending on
 whether "plate center" means **the centre of the plate** or **the centroid of
-the transients found on it**. Those coincide only if the transients are
-distributed symmetrically across the plate, which is precisely what is in
-question when the concern is edge artifacts.
+the transients found on it**. Those coincide only where a plate's transients
+carry no net offset from its centre, and the ~8.5-point gap between the two
+published figures is itself evidence that they often do — which matters here,
+because a centroid computed from the very population under test moves with any
+asymmetry in that population, including one caused by edge contamination.
 
 `--pasp2025` uses the plate's actual centre, taken from the scan's WCS. Anyone
 reproducing a published edge-masked count should state which definition they
