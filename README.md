@@ -206,6 +206,7 @@ python3 tools/union_parity_fullscale.py \
 | `tools/archive_slice_parity.py` | archive-cutout vs plate-slice agreement, both arms |
 | `tools/nondetection_cutouts.py` | side-by-side stamps for unmatched rows |
 | `tools/classify_displaced_misses.py` | same object, neighbour, or nothing there? |
+| `tools/rim_neighbour_counterparts.py` | second partition rule, drawn on plate radius |
 | `tools/rim_depth_profile.py` | signal and SuperCOSMOS agreement vs plate radius |
 | `tools/audit_independence.py` | proves no private data, tree and history |
 | `scripts/stage_*_post.py` | 16 post-processing / veto stages |

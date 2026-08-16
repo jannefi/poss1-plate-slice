@@ -250,6 +250,26 @@ for boundary sky that is close to a coin flip (plate-at-tile-centre vs
 plate-at-source-position differ for a measured ~15% of positions), and for
 deep-rim sky effectively never.
 
+**A second, independent partition rule gives the same answer.** The rule above
+asks about the *primary* plate — whichever plate centre the position is nearest.
+A different rule asks about plate **radius**: take every row more than 3.0° from
+its own plate centre in that plate's pixel frame (a POSS-I plate is square in
+pixel space and rotated against RA/Dec, so the chebyshev must be taken there),
+and test the nearest *other* plate.
+[`tools/rim_neighbour_counterparts.py`](../../tools/rim_neighbour_counterparts.py):
+
+| rule | rows | counterpart ≤5″ | rate | shifted null |
+|---|---:|---:|---:|---:|
+| primary plate (`check_primary_counterparts.py`) | 54,749 | 122 | **0.22%** | 2.68% |
+| plate radius > 3.0° (`rim_neighbour_counterparts.py`) | 44,289 | 142 | **0.32%** | 2.75% |
+
+The two null controls agree to 0.07 points from independently written code, and
+the rules pick out substantially the same objects — 107 of the 142 also carry
+`primary_has_det`, and 119 of them are non-primary. **So the partition is not an
+artifact of how it was drawn**: whichever way you define "sky a per-position
+design cannot reach", ~99.7% of the rows there have no counterpart on the plate
+such a design would have been served.
+
 **This is a partition, not a quality cut.** Filtering to `is_primary` discards
 real content: measured against the public vanish-possi catalogue, it loses
 **9.1% of R matches** (98 of 1,072). Quote the partition counts side by side;

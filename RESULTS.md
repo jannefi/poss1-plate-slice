@@ -152,6 +152,12 @@ design only when its tile grid happens to serve that plate. This is the
 measured explanation for why a full-plate catalogue is larger than a
 cutout-based one at identical filters.
 
+**A second partition rule, drawn on plate radius rather than plate identity,
+gives the same answer** — 0.32% against a 2.75% null on 44,289 rows beyond 3.0°
+from their plate centre, with the two nulls agreeing to 0.07 points from
+independently written code. The partition is therefore not an artifact of how it
+was drawn.
+
 **The flags partition; they do not judge.** Filtering to `is_primary` costs a
 measured **9.1% of matches to the published vanish-possi catalogue** (98 of
 1,072), so both counts are quoted side by side and any filtering is the
