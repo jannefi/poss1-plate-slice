@@ -61,6 +61,11 @@ remains citable and is the primary reference here. Second, the 22,309 file was
 pre-filtered by the original team rather than recomputed independently, so it
 evidences *what they meant* rather than providing a separate measurement.
 
+**Consequence, on their own published figures:** those 22,314 are what survives
+the 2° criterion out of the full transient list, which is roughly five times
+larger — so their own edge criterion sets aside about **four fifths** of the
+catalogue whenever an analysis depends on it.
+
 ### "Within 2° of plate center" is under-specified
 
 Doherty's paper computes its own centre-of-plate subset by "unit-vector
@@ -75,22 +80,6 @@ question when the concern is edge artifacts.
 `--pasp2025` uses the plate's actual centre, taken from the scan's WCS. Anyone
 reproducing a published edge-masked count should state which definition they
 used; it is worth roughly nine percentage points of yield here.
-
----|---:|
-| PASP 2025, published | 22,314 |
-| independent replication, `plate_shadow_coverage_2deg_center.txt` | 22,309 |
-
-Five rows apart, from two sources that do not share a code path. The
-replication ships a dataset named
-`SUPERVIKTIG_HELAVASCO_within2deg_CENTER.csv`, documented as "pre-filtered to
-transients within 2 degrees of their plate center", and its results file
-reports `Plate field radius: 2.0 deg` over 614 plates. Both describe a
-*retained* subset.
-
-**Consequence, on their own published figures:** those 22,314 are what survives
-the 2° criterion out of the full transient list, which is roughly five times
-larger — so their own edge criterion sets aside about **four fifths** of the
-catalogue whenever an analysis depends on it.
 
 ---
 
