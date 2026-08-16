@@ -28,7 +28,8 @@ For each (tile_id, plate_id) pair in the tile plan:
      thresholds (defaults match the original VASCO60 run).
 
 Output: data/metadata/tile_plate_edge_report.csv, same column schema as
-the original tool, so is_edge_core() (see scripts/stage_edge_post.py)
+the original tool (the consumer that used it, scripts/stage_edge_post.py,
+was retired 2026-08-16 in favour of scripts/stage_edge_post_v2.py), so it
 needs no changes:
   tile_id, plate_id, plate_nx, plate_ny, tile_center_ra_deg,
   tile_center_dec_deg, plate_center_ra_deg, plate_center_dec_deg,
