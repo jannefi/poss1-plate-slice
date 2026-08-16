@@ -61,16 +61,17 @@ remains citable and is the primary reference here. Second, the 22,309 file was
 pre-filtered by the original team rather than recomputed independently, so it
 evidences *what they meant* rather than providing a separate measurement.
 
-**Consequence, on their own published figures:** those 22,314 are what survives
-the 2° criterion out of the full transient list, which is roughly five times
-larger — so their own edge criterion sets aside about **four fifths** of the
+**Consequence, on their own published figures:** the catalogue holds
+107,875 transients across 635 plates (arXiv:2604.00056), of which 22,314 survive
+the 2° criterion — so their own edge criterion sets aside **79.3%** of the
 catalogue whenever an analysis depends on it.
 
 ### "Within 2° of plate center" is under-specified
 
 Doherty's paper computes its own centre-of-plate subset by "unit-vector
 averaging of source positions per plate" and retains **31,525 transients
-(29.2%)** — against the ~20.7% implied by the published 22,314. The same
+(29.2% of the 107,875 in arXiv:2604.00056)** — against the 20.7% implied by
+PASP's 22,314. The same
 stated criterion therefore yields materially different subsets depending on
 whether "plate center" means **the centre of the plate** or **the centroid of
 the transients found on it**. Those coincide only if the transients are
@@ -143,8 +144,8 @@ geometry checks with no pipeline state.
 | after SuperCOSMOS + PTF | 71,654 | 11,322 | **15.8%** |
 
 For scale, the same criterion retains 22.9% of the published vanish-possi
-catalogue (R), and about a fifth of the VASCO transient list per the figures
-above.
+catalogue (R) and 20.7% of the VASCO transient list (22,314 of the
+107,875 reported in arXiv:2604.00056).
 
 **This catalogue is rim-heavy by construction, and that is not a quality
 statement.** Full-plate slicing tiles the entire plate including its corners;

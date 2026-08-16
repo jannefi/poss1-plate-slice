@@ -40,7 +40,6 @@ from pathlib import Path
 BANNED = [
     r"vasco_main_list",
     r"vasco-cats",
-    r"107[,_]?875",
     r"\bv[-_]csv\b",
     r"tiles_supplement_v",
     r"radec_cache_supplement",
@@ -53,8 +52,38 @@ BANNED = [
     r"\bthe V\b",
 ]
 
+# Tokens that are PUBLIC, but only safe with their source attached.
+#
+# The transient-catalogue row count was treated as a private marker until
+# 2026-08-16. It is not: it is stated in Doherty, "Independent Replication of
+# Nuclear Test-Transient Correlations and Earth Shadow Deficit in POSS-I
+# Photographic Plates", arXiv:2604.00056, alongside the 635-plate figure, and
+# appears in the wider literature. Blanket-banning it forced circumlocutions
+# ("roughly five times larger") that made published arithmetic harder to check,
+# which is the opposite of what this audit is for.
+#
+# It stays conditional rather than simply allowed. Writing the number is fine
+# when the citation travels with it on the same line; writing it bare is what
+# this audit should still catch, because a bare row count reads as a property of
+# a catalogue we hold rather than a figure someone else published.
+CONDITIONAL = [
+    (
+        r"107[,_]?875",
+        r"2604\.00056|arXiv|PASP|Doherty|published",
+        "public via arXiv:2604.00056 -- keep the citation on the same line",
+    ),
+]
+
 # Paths that are allowed to mention the tokens, because their job is to name them.
 ALLOW = {"tools/audit_independence.py"}
+
+
+def _conditional_hit(line: str) -> str | None:
+    """Return a reason if a conditional token appears without its context."""
+    for tok, ctx, why in CONDITIONAL:
+        if re.search(tok, line, re.I) and not re.search(ctx, line, re.I):
+            return why
+    return None
 
 SKIP_DIRS = {".git", "__pycache__", ".venv", "venv", "node_modules"}
 SKIP_SUFFIX = {".pyc", ".gz", ".fits", ".parquet", ".png", ".jpg", ".pdf"}
@@ -98,6 +127,10 @@ def scan_tree(root: Path) -> list[tuple[str, int, str]]:
         for i, line in enumerate(text.splitlines(), 1):
             if pat.search(line):
                 hits.append((rel, i, line.strip()[:120]))
+                continue
+            why = _conditional_hit(line)
+            if why:
+                hits.append((rel, i, f"[uncited] {line.strip()[:100]}  <- {why}"))
     return hits
 
 
@@ -123,8 +156,13 @@ def scan_history(root: Path) -> list[str]:
         if ln.startswith("+++ b/"):
             cur = ln[6:].strip()
             continue
-        if ln.startswith("+") and cur not in ALLOW and pat.search(ln):
-            hits.append(f"{cur}: {ln.strip()[:100]}")
+        if ln.startswith("+") and cur not in ALLOW:
+            if pat.search(ln):
+                hits.append(f"{cur}: {ln.strip()[:100]}")
+            else:
+                why = _conditional_hit(ln)
+                if why:
+                    hits.append(f"{cur}: [uncited] {ln.strip()[:90]}  <- {why}")
     return hits
 
 
