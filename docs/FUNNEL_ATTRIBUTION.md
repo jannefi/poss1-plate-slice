@@ -8,8 +8,9 @@ veto, gate by gate — rather than inferring it from aggregate counts.
 
 Everything here uses public inputs only: public plate scans, the public
 reference catalogue, and this repository's own pipeline output. Tools:
-[`tools/funnel_attribution.py`](../tools/funnel_attribution.py) and
-[`tools/gaia_epoch_check.py`](../tools/gaia_epoch_check.py).
+[`tools/funnel_attribution.py`](../tools/funnel_attribution.py),
+[`tools/gaia_epoch_check.py`](../tools/gaia_epoch_check.py) and
+[`tools/usnob_pm_quality.py`](../tools/usnob_pm_quality.py).
 
 **Sample sizes are small, and that governs how these numbers may be used.** The
 reference catalogue has 5,399 rows spread over 642 plates, so any subset of
@@ -74,6 +75,12 @@ the released catalogue against the reference catalogue: **1,072 of 5,399
 | **MNRAS filters total** | **93** | **83.0%** |
 | spike mask / global dedup | 0 | 0% |
 
+**The USNO-B row does not survive scrutiny.** It is a defect in this project's
+own veto stage rather than a property of the reference catalogue — see
+[the USNO-B section](#the-usno-b-veto-fires-on-fabricated-proper-motions)
+below. Read the veto-chain total as **4 rows (3.6%)**, not 19, and the filter
+share as correspondingly larger.
+
 Which gate actually fired, read from the `reject_reason` column rather than
 re-derived:
 
@@ -129,14 +136,112 @@ nine is an individually checkable published coordinate: take the reference
 position, query Gaia DR3, propagate the proper motion back ~65 years, and the
 star is there. No part of this needs this pipeline.
 
-## An open question about the USNO-B veto
+## The USNO-B veto fires on fabricated proper motions
 
-USNO-B is this project's addition to the veto chain, and it removes 15
-reference rows — 13.4% of all losses, and 79% of the veto chain's total. Worth
-checking directly against USNO-B rather than assuming: this pipeline propagates
-proper motion to the plate epoch before matching, which a match at USNO-B's
-own epoch 2000.0 would not do, so the two need not agree. Fifteen rows is small
-enough to inspect individually.
+USNO-B is **this project's own addition** to the veto chain — Solano et al.
+(2022) use Gaia and Pan-STARRS — and it removes 15 reference rows, 13.4% of all
+losses and 79% of the veto chain's total. An earlier version of this page left
+that as an open question. It has now been inspected, and the answer is that
+**the removals are spurious and the stage is circular with the plates it runs
+on.**
+
+### What the epoch propagation does
+
+The pipeline propagates USNO-B positions to the plate epoch before the 5″ veto
+cone. That is correct in principle: a genuine high-proper-motion star sits
+10–25″ from its J2000 position on a 1950s plate, and matching at J2000 would
+miss it.
+
+On the 15 rows (plus one from a second tile set) the propagation is the entire
+story:
+
+| | at epoch 2000.0 | at plate epoch |
+|---|---:|---:|
+| matched within 5″ | **0 / 16** | **15 / 16** |
+| RA+5° null control | 3 / 16 | 3 / 16 |
+
+Nearest USNO-B source at 2000.0 is 5.0–25.5″ away; after propagation the median
+separation is **0.62″**. The null control does not move between epochs at all
+(3.13→3.13, 3.23→3.23, 4.84→4.84), because chance neighbours have no proper
+motion — real firings converge, chance firings do not.
+
+### The proper motions are not real
+
+The veto invoked motions of **186–589 mas/yr**. Across all 4,549 Gaia DR3
+sources within 3′ of those sixteen positions, the fastest star moves at
+**101 mas/yr**. For 12 of the 16, Gaia has a source within 5″ of the USNO-B
+*catalogued* position moving at **0–13 mas/yr** — a discrepancy of 26–238×.
+
+That generalises, and not narrowly. Sixty random 12′ fields inside the plate
+footprint, 7.54 deg², 150,333 USNO-B entries
+([`tools/usnob_pm_quality.py`](../tools/usnob_pm_quality.py)):
+
+| | count in 7.54 deg² | per deg² |
+|---|---:|---:|
+| Gaia DR3 sources with PM ≥ 150 mas/yr | **31** | 4.1 |
+| USNO-B entries claiming PM ≥ 150 mas/yr | **9,200** | 1,220.2 |
+
+**USNO-B overclaims fast stars by 297×.** Testing each entry symmetrically —
+*fabricated* if a slow Gaia star sits at its catalogued J2000 position,
+*genuine* if Gaia sits where its own proper motion predicts for 2016.0 at a
+comparable rate — only **0.3%** of the high-PM entries are confirmed genuine,
+against 30.7% demonstrably stationary. The 29 confirmed genuine correspond
+closely to the 31 real fast stars Gaia finds. A low-PM control stratum leaves
+only 18.6% indeterminate against 69.0% at high PM, so this is not the
+association test failing.
+
+The symmetry matters: a naive "is Gaia at the J2000 position" test is biased,
+because a real 500 mas/yr star has moved 8″ by Gaia's epoch and would fail it
+purely by moving, leaving only stationary stars in the associated set.
+
+### Why the matches land so precisely — the circularity
+
+USNO-B records which surveys back each entry. **All 16 carry an `R1` leg:
+POSS-I red, the same glass this pipeline runs SExtractor on.**
+
+USNO-B has paired a POSS-I detection with an unrelated POSS-II detection and
+fitted a proper motion to the pair. Back-propagating by that fitted motion
+sweeps the entry 8–25″ across the sky and reproduces the R1 position — the
+POSS-I detection — to sub-arcsecond precision, because that detection is an
+input to the fit. **The stage discards a POSS-I detection on the evidence that
+USNO-B recorded that same POSS-I detection.**
+
+Across 9,052 real veto firings on 1,250 tiles retained with their full
+per-stage chain:
+
+| | firings | share |
+|---|---:|---:|
+| static match at J2000 — propagation irrelevant | 5,121 | 56.6% |
+| **fired only because of propagation** | **3,931** | **43.4%** |
+
+Of the propagation-dependent firings, **0.5% are genuine**, 28.0% are
+demonstrably fabricated, 71.5% are indeterminate, and **89.6% are `R1`-backed**.
+The 0.5% independently reproduces the 0.3% above. Median motion invoked:
+309 mas/yr.
+
+### Two limits on these numbers
+
+The 1,250 tiles were selected around published reference positions, so their
+firing rate is **not a survey rate**. And 71.5% indeterminate means the
+fabricated fraction is a floor, not an estimate — what bounds the other side is
+the 0.3–0.5% confirmation rate, which makes it unlikely the indeterminates are
+real fast stars.
+
+### What this means for the released catalogue
+
+The released catalogue was produced with this veto active and propagating, so
+these removals are inside it. The per-tile intermediate state for that run has
+since been deleted, so the affected rows cannot be recovered by inspection and
+would have to be recomputed by re-running.
+
+Nothing has been altered in response. The released files and their hashes
+stand, and this section is the disclosure rather than a correction to them.
+
+**USNO-B is not part of the method being reproduced.** It was an optional extra
+stage, and the planned paper-compliant run drops it — along with the other
+deviations from Solano et al. (2022) — which removes the defect at the source
+rather than patching it. Until that run exists, treat the USNO-B row of the
+attribution table above as spurious and the veto chain as 4 rows, not 19.
 
 ## Reproducing
 
@@ -151,6 +256,21 @@ python3 tools/funnel_attribution.py \
 python3 tools/gaia_epoch_check.py \
     --funnel-csv funnel_rows.csv --tiles-root <run>/tiles --out gaia_epoch.csv
 ```
+
+The USNO-B proper-motion measurement needs no pipeline output at all — two
+local catalogue mirrors and this repository's plate manifest are enough, so it
+is checkable by anyone holding USNO-B1.0 and Gaia DR3:
+
+```bash
+python3 tools/usnob_pm_quality.py \
+    --usnob-mirror <usnob parquet dir> \
+    --gaia-mirror <gaia parquet dir> \
+    --density-check
+```
+
+It is seed-stable (`--seed`, default 20260817). Both mirrors must be
+hive-partitioned on a `healpix_5` column built at nside=32 in **nested** order;
+read as ring, the queries silently return the wrong sky.
 
 The tile sets used here are pipeline output, regenerable from the public plate
 scans by the documented run procedure — a run must retain its per-tile
