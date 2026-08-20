@@ -1616,14 +1616,29 @@ def cmd_step4_xmatch(args: argparse.Namespace) -> int:
         except Exception:
             pass
 
-    # Best-effort tile center (used by neighbourhood fetchers)
-    try:
-        stem = Path(json.loads((run_dir / 'RUN_INDEX.json').read_text(encoding='utf-8'))[0]['tile']).name
-        parts = stem.split('_')
-        ra_t = float(parts[1])
-        dec_t = float(parts[2])
-    except Exception:
-        ra_t, dec_t = 0.0, 0.0
+    # Tile center for the neighbourhood fetchers. NOT best-effort: every veto
+    # catalogue below is fetched as a cone around it, so a wrong centre vetoes
+    # against the wrong sky and every catalogued star survives. That failure is
+    # silent and looks exactly like a real transient excess -- it once inflated
+    # a validation run to 31,745 survivors against an expected 374 (~85x).
+    #
+    # This used to parse RUN_INDEX.json inline and fall back to (0,0), which is
+    # a real position 114 degrees from a typical POSS-I tile. Two things were
+    # wrong with that: (0,0) is indistinguishable from a legitimate centre, and
+    # WCSFIX at the top of this function resolves the SAME centre through
+    # _tile_center_from_index_or_name(), so a tile with no RUN_INDEX.json got a
+    # correct centre for the refit and (0,0) for the vetoes. Use the one helper
+    # -- it tries RUN_INDEX.json first, then the tile directory name -- and
+    # abort when even that cannot answer.
+    _center = _tile_center_from_index_or_name(run_dir)
+    if _center is None:
+        print(f'[STEP4][FATAL] cannot resolve the tile centre for {run_dir.name}: '
+              f'no usable RUN_INDEX.json and the directory name does not parse '
+              f'as tile_RA<ra>_DEC<p|m><dec>. Refusing to fetch veto catalogues '
+              f'from an unknown position -- a wrong cone silently disables every '
+              f'veto. Fix the run directory rather than re-running.')
+        return 2
+    ra_t, dec_t = _center
 
     # +3' margin beyond circumscribed circle to prevent edge leakage (e.g. source 2319 X=2031)
     radius_arcmin = args.size_arcmin * (2 ** 0.5) * 0.5 + 3.0
@@ -1689,6 +1704,77 @@ def cmd_step4_xmatch(args: argparse.Namespace) -> int:
                     print('[STEP4]', run_dir.name, 'USNO-B -> catalogs/usnob_neighbourhood.csv')
         except Exception as e:
             print('[STEP4][WARN]', run_dir.name, 'USNO-B fetch failed:', e)
+
+    # ------------------------------------------------------------------
+    # Cone sanity guard: prove each veto catalogue actually covers this tile.
+    #
+    # Second line of defence behind the tile-centre resolution above. It catches
+    # the same class of failure from the other end -- including a cache left
+    # behind by an EARLIER bad run, which _cache_ok() would happily reuse
+    # without ever re-fetching. What it must never do is fire on a legitimate
+    # cone, so the threshold is 2x the fetch radius: astronomically unreachable
+    # for a correct cone, unmissable for a wrong one (a (0,0) cone sits ~114 deg
+    # from a typical POSS-I tile).
+    #
+    # It compares the MEDIAN SEPARATION of the catalogue's sources from the
+    # requested centre, not the separation of their median position. That is
+    # deliberate: a cone straddling RA=0 has sources at both 359.9 and 0.1, so a
+    # median RA lands near 180 and would false-abort precisely the meridian and
+    # polar tiles that are already delicate here. Per-source separations have no
+    # wrap to get wrong.
+    # ------------------------------------------------------------------
+    def _cone_covers_tile(cache_path: Path, label: str) -> bool:
+        """True if cache_path's sources sit near (ra_t, dec_t). Empty/absent -> True."""
+        import csv as _csv
+        import math as _math
+        try:
+            if not (cache_path.exists() and cache_path.stat().st_size > 0):
+                return True
+            cols = _detect_radec_columns(cache_path)
+            if cols is None:
+                with open(cache_path, newline='') as f:
+                    hdr = {h.strip() for h in next(_csv.reader(f))}
+                # PS1 mean.csv, which _detect_radec_columns does not know about
+                cols = ('raMean', 'decMean') if {'raMean', 'decMean'} <= hdr else None
+            if cols is None:
+                return True  # unreadable header is not this guard's business
+            ra_c, dec_c = cols
+            seps = []
+            with open(cache_path, newline='') as f:
+                for i, row in enumerate(_csv.DictReader(f)):
+                    if i >= 2000:  # a median needs a sample, not the whole cone
+                        break
+                    try:
+                        ra_s = float(row[ra_c]); dec_s = float(row[dec_c])
+                    except (TypeError, ValueError, KeyError):
+                        continue
+                    d_dec = _math.radians(dec_s - dec_t)
+                    d_ra = _math.radians(ra_s - ra_t)
+                    a = (_math.sin(d_dec / 2) ** 2
+                         + _math.cos(_math.radians(dec_t)) * _math.cos(_math.radians(dec_s))
+                         * _math.sin(d_ra / 2) ** 2)
+                    seps.append(_math.degrees(2 * _math.asin(min(1.0, _math.sqrt(a)))))
+            if not seps:
+                return True  # header-only sentinel, or no parseable rows
+            seps.sort()
+            med = seps[len(seps) // 2]
+            limit_deg = 2.0 * (radius_arcmin / 60.0)
+            if med > limit_deg:
+                print(f'[STEP4][FATAL] {run_dir.name} {label} cone does not cover this '
+                      f'tile: median source separation {med:.3f} deg from the requested '
+                      f'centre ({ra_t:.5f}, {dec_t:.5f}), limit {limit_deg:.3f} deg '
+                      f'({len(seps)} sources sampled). The veto would run against the '
+                      f'wrong sky and pass catalogued stars through as candidates. '
+                      f'Delete {cache_path} and re-run, or fix the tile centre.')
+                return False
+            return True
+        except Exception as e:
+            print(f'[STEP4][WARN] {run_dir.name} {label} cone check skipped: {e}')
+            return True
+
+    for _cache, _label in ((gaia_cache, 'Gaia'), (ps1_cache, 'PS1'), (usnob_cache, 'USNO-B')):
+        if not _cone_covers_tile(_cache, _label):
+            return 2
 
     # ------------------------------------------------------------------
     # Bug #6 fix: epoch-propagate Gaia (J2016.0) and USNO-B (J2000.0)
