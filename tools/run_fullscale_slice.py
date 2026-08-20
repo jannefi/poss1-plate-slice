@@ -140,10 +140,18 @@ def main():
     print(f"[CONFIG] circle_cut={circle}  wcsfix={wcsfix}  "
           f"spike_cat={spike_cat}  veto={veto_set}  "
           f"crpix_table={args.crpix_table or 'NONE'}  "
-          f"drop_vignet={os.environ.get('VASCO_LDAC_DROP_VIGNET', '0')}")
+          f"drop_vignet={os.environ.get('VASCO_LDAC_DROP_VIGNET', '0')}",
+          # flush: stdout is block-buffered when redirected to a file, so this
+          # banner used to appear only once ~8 KB had accumulated -- i.e. not for
+          # the ~26 min a plate takes. It surfaced at all in past runs only
+          # because the WARN branches below flush, which means it was visible
+          # exactly when something was wrong and invisible when the config was
+          # correct. REPRODUCING.md tells the reader to check these lines before
+          # letting the run continue; that only works if they are written.
+          flush=True)
     if args.with_vetoes:
         for e in REQUIRED_ENV_VETO:
-            print(f"[CONFIG] {e}={os.environ.get(e)}")
+            print(f"[CONFIG] {e}={os.environ.get(e)}", flush=True)
     if circle != "off":
         print("[CONFIG][WARN] a circular cut is ACTIVE -- README documents square "
               "tiles with no 30' cut. Unset VASCO_CIRCLE_ARCMIN unless you mean it.",
@@ -184,7 +192,8 @@ def main():
             + (f", restricted by --plates {args.plates}" if args.plates else "")
             + (f", intersected with --plate-manifest {args.plate_manifest}"
                if args.plate_manifest else ""))
-    print(f"[PLAN] {len(plates)} plates, grid {args.grid}x{args.grid}, workers {args.workers}")
+    print(f"[PLAN] {len(plates)} plates, grid {args.grid}x{args.grid}, workers {args.workers}",
+          flush=True)
 
     # The slicer's stdout used to be captured and thrown away, so 195 tiles lost
     # to "Arrays do not overlap" passed silently and only turned up in a tile
@@ -282,6 +291,16 @@ def main():
                     e = tdir / extra
                     if e.exists():
                         shutil.copyfile(e, filtered / tdir.name / extra)
+                # Harvest the spike-mask diagnostics too. Without them the only
+                # record of what the bright-star mask did dies with the tile tree,
+                # which is deleted a few lines below -- so "did the spike stage
+                # actually run, and with which catalogue" becomes unanswerable
+                # after the fact and can only be inferred from the row count.
+                # Tens of KB per tile against the ~250 MB tile it came from.
+                rej = tdir / "catalogs" / "sextractor_spike_rejected.csv"
+                if rej.exists():
+                    shutil.copyfile(rej, filtered / tdir.name / "catalogs" /
+                                    "sextractor_spike_rejected.csv")
                 n_surv += 1
 
         n_det = 0
