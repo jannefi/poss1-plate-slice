@@ -1625,8 +1625,32 @@ def cmd_step4_xmatch(args: argparse.Namespace) -> int:
     run_dir = _build_run_dir(Path(args.workdir) if args.workdir else None)
     p2 = run_dir / 'pass2.ldac'
     if not p2.exists():
-        print('[STEP4][ERROR] pass2.ldac missing. Run step3-psf-and-pass2 first.')
-        return 2
+        # The LDAC's ONLY role downstream is producing sextractor_pass2.csv via
+        # _ensure_sextractor_csv, which already declines to regenerate when the
+        # CSV is newer. So a tile that still has a valid CSV needs no LDAC: the
+        # veto, filters, spike mask and dedup all read the CSV.
+        #
+        # This matters because it makes an already-extracted run re-runnable
+        # under a different configuration -- WCSFIX on/off, a different veto set,
+        # a different spike catalogue -- without repeating SExtractor + PSFEx,
+        # which is the only expensive stage (~25 min/plate). The harvested
+        # catalogue is pre-veto and pre-spike-mask, so it is independent of all
+        # of those choices.
+        #
+        # Announced loudly rather than silently: with no LDAC there is nothing
+        # to check the CSV's freshness against, so the operator must know the
+        # detections came from a prior extraction.
+        fallback_csv = run_dir / 'catalogs' / 'sextractor_pass2.csv'
+        if fallback_csv.exists() and fallback_csv.stat().st_size > 0:
+            print(f'[STEP4][INFO] pass2.ldac absent; proceeding from the existing '
+                  f'{fallback_csv.name} ({fallback_csv.stat().st_size} bytes). '
+                  f'Detections come from a PRIOR extraction and cannot be '
+                  f'freshness-checked against an LDAC.')
+        else:
+            print('[STEP4][ERROR] pass2.ldac missing and no usable '
+                  'catalogs/sextractor_pass2.csv to fall back on. '
+                  'Run step3-psf-and-pass2 first.')
+            return 2
 
     import os
 
@@ -1743,6 +1767,27 @@ def cmd_step4_xmatch(args: argparse.Namespace) -> int:
     try:
         raw_fits = next(iter(sorted((run_dir / 'raw').glob('*.fits'))), None)
         plate_epoch = _plate_epoch_year_from_fits(raw_fits) if raw_fits else None
+        if plate_epoch is None:
+            # Post-hoc re-runs work from a harvested catalogue with no tile FITS,
+            # so the epoch cannot be read from a header. It is a per-PLATE
+            # constant (one plate, one DATE-OBS), so an explicit override is
+            # exact rather than approximate -- see the plate epoch lookup built
+            # for the epoch delivery.
+            #
+            # Worth overriding rather than tolerating: without an epoch the run
+            # SKIPS proper-motion propagation entirely, and over a ~65-year
+            # baseline a 15 mas/yr star moves 1.0", a fifth of the veto radius.
+            # The veto then silently fails to remove real moving stars, which is
+            # a change in results, not a degradation in convenience.
+            env_epoch = os.getenv('VASCO_PLATE_EPOCH_YEAR', '').strip()
+            if env_epoch:
+                try:
+                    plate_epoch = float(env_epoch)
+                    print(f'[STEP4][INFO] {run_dir.name} plate epoch from '
+                          f'VASCO_PLATE_EPOCH_YEAR={plate_epoch:.3f} (no tile FITS)')
+                except ValueError:
+                    print(f'[STEP4][WARN] {run_dir.name} VASCO_PLATE_EPOCH_YEAR='
+                          f'{env_epoch!r} is not a number; ignoring')
         if plate_epoch is not None:
             print(f'[STEP4][INFO] {run_dir.name} plate epoch = {plate_epoch:.3f}')
             catdir = run_dir / 'catalogs'
