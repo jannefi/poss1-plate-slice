@@ -297,10 +297,23 @@ def main():
                 # actually run, and with which catalogue" becomes unanswerable
                 # after the fact and can only be inferred from the row count.
                 # Tens of KB per tile against the ~250 MB tile it came from.
-                rej = tdir / "catalogs" / "sextractor_spike_rejected.csv"
-                if rej.exists():
-                    shutil.copyfile(rej, filtered / tdir.name / "catalogs" /
-                                    "sextractor_spike_rejected.csv")
+                # Keep the FULL detection catalogue and the per-stage ledger, not
+                # just the survivors. Re-slicing pixels is seconds; regenerating
+                # these is the ~25 min/plate of SExtractor + PSFEx, so this is the
+                # expensive artifact, and dropping it once already turned a
+                # four-hour fix into a multi-day re-run. radec/<plate>.csv keeps
+                # only ra,dec,mag,tile_id,plate_id -- every other column dies with
+                # the tile tree. MNRAS_SUMMARY.json is the per-tile record of how
+                # many rows each stage cut and which stage cut them; without it a
+                # funnel can only be recomputed, never audited.
+                for extra in ("catalogs/sextractor_pass2.csv",
+                              "catalogs/sextractor_spike_rejected.csv",
+                              "MNRAS_SUMMARY.json"):
+                    src_x = tdir / extra
+                    if src_x.exists():
+                        dst_x = filtered / tdir.name / extra
+                        dst_x.parent.mkdir(parents=True, exist_ok=True)
+                        shutil.copyfile(src_x, dst_x)
                 n_surv += 1
 
         n_det = 0
