@@ -165,12 +165,23 @@ export VASCO_WCSFIX_DISABLE=1
 # Must NOT be set: tiles are square here, with no circular catalogue cut.
 unset VASCO_CIRCLE_ARCMIN
 
+# --plate-dir defaults to plate_dir from config.local.yaml (or POSS1_PLATE_DIR).
+# Pass it explicitly if you have configured neither. An unset plate_dir aborts
+# with [FATAL]; it does not silently process zero plates.
 python3 tools/run_fullscale_slice.py \
     --out-dir work/slice \
+    --plate-dir "$POSS1_PLATE_DIR" \
     --plate-manifest data/plate_manifest.csv \
     --crpix-table data/plate_crpix_table.csv \
     --workers 12
 ```
+
+**Check the exit code, and the last line.** The run ends with a
+`[DONE] N ok, N partial, N failed` tally. It exits **1** if any plate failed to
+slice, **2** if any plate came back partial (output produced, but not a complete
+plate), and 0 only on a clean full run. Earlier versions always exited 0, so a
+run whose every plate failed still looked like a success to `&&`, a wrapper or
+cron.
 
 **Read the first log lines before letting it run.** They must report the
 `circle_cut` and `wcsfix` state you intended. Both have gone wrong in real runs

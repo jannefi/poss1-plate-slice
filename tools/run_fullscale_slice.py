@@ -29,7 +29,11 @@ run continues where it stopped.
 How to validate
 ---------------
     python3 tools/run_fullscale_slice.py --out-dir work/runs/fullscale_slice \
-        --plate-dir <plate_dir> --workers 12
+        --workers 12
+
+--plate-dir is optional: it defaults to `plate_dir` from config.local.yaml (or
+POSS1_PLATE_DIR). If neither is set the run aborts with [FATAL] naming the key,
+rather than globbing a path that matches nothing and reporting success.
 
 Check `progress.csv`: every plate must report 49 tiles sliced, 49 with catalogs,
 and **0 skips**. A plate reporting fewer has failed and should be re-run; the run
@@ -54,6 +58,7 @@ import pandas as pd
 
 REPO = Path(__file__).resolve().parents[1]
 PY = sys.executable
+sys.path.insert(0, str(REPO))   # so `vasco.paths` resolves when run as tools/<script>
 # Caches must be present on EVERY step. A missing one does not fail -- it
 # silently falls back to live VizieR/MAST, which at survey scale means a run
 # that appears to work and takes days.
@@ -75,7 +80,13 @@ def plate_list(plate_dir: Path, only: str | None):
 def main():
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--out-dir", required=True)
-    ap.add_argument("--plate-dir", default="<plate_dir>")
+    # No literal placeholder default. `vasco.paths.get` already refuses
+    # "<...>" values with a [FATAL] naming the key and how to set it; a
+    # placeholder default here routed around that guard, so an unconfigured
+    # plate_dir surfaced as a FileNotFoundError from inside astropy -- or, with
+    # --plates omitted, as a glob matching nothing and a clean "[DONE] 0 plates".
+    ap.add_argument("--plate-dir", default=None,
+                    help="Default: plate_dir from config.local.yaml / POSS1_PLATE_DIR.")
     ap.add_argument("--plates", default=None, help="Comma-separated subset; default all on disk.")
     ap.add_argument("--plate-manifest", default=None,
                     help="CSV with a plate_id column restricting to VASCO's own plate set.")
@@ -119,7 +130,15 @@ def main():
     # plates while the docs described raw plate WCS. Print the state; never
     # leave it to be inferred from a default.
     wcsfix = "off" if os.environ.get("VASCO_WCSFIX_DISABLE") else "ON"
+    # Same reasoning as wcsfix above, for the two levers that also default to a
+    # value the docs do not describe: the spike mask defaults to PS1 (deviation
+    # #4) and the veto chain defaults to three catalogues including USNO-B,
+    # which the paper does not use for its 5" rejection. Neither is inferable
+    # from the log otherwise.
+    spike_cat = (os.environ.get("VASCO_SPIKE_CATALOG") or "ps1").strip().lower()
+    veto_set = "gaia+ps1" if os.environ.get("VASCO_DISABLE_USNOB") else "gaia+ps1+usnob"
     print(f"[CONFIG] circle_cut={circle}  wcsfix={wcsfix}  "
+          f"spike_cat={spike_cat}  veto={veto_set}  "
           f"crpix_table={args.crpix_table or 'NONE'}  "
           f"drop_vignet={os.environ.get('VASCO_LDAC_DROP_VIGNET', '0')}")
     if args.with_vetoes:
@@ -145,10 +164,26 @@ def main():
         filtered.mkdir(parents=True, exist_ok=True)
     scratch = out / "scratch_tiles"
 
-    plates = plate_list(Path(args.plate_dir), args.plates)
+    if args.plate_dir is None:
+        from vasco.paths import get as _resolve_path
+        args.plate_dir = str(_resolve_path("plate_dir"))   # [FATAL]s if unconfigured
+    plate_dir = Path(args.plate_dir)
+    if not plate_dir.is_dir():
+        raise SystemExit(f"[FATAL] --plate-dir {plate_dir} is not a directory")
+
+    plates = plate_list(plate_dir, args.plates)
     if args.plate_manifest:
         want = set(pd.read_csv(args.plate_manifest).plate_id.astype(str))
         plates = [p for p in plates if p in want]
+    if not plates:
+        # Previously this ran the loop zero times and printed [DONE], so a
+        # misconfigured plate_dir or a --plate-manifest sharing no plate with the
+        # directory was indistinguishable from a successful run.
+        raise SystemExit(
+            f"[FATAL] no plates to process. Looked for dss1red_XE*.fits in {plate_dir}"
+            + (f", restricted by --plates {args.plates}" if args.plates else "")
+            + (f", intersected with --plate-manifest {args.plate_manifest}"
+               if args.plate_manifest else ""))
     print(f"[PLAN] {len(plates)} plates, grid {args.grid}x{args.grid}, workers {args.workers}")
 
     # The slicer's stdout used to be captured and thrown away, so 195 tiles lost
@@ -163,6 +198,10 @@ def main():
         prog.write_text("plate,tiles_sliced,tiles_with_catalogs,detections,skips,survivors,seconds,status\n")
 
     t_start = time.time()
+    # Exit status used to be 0 unconditionally, so a run whose every plate failed
+    # at the slice step still reported success to a wrapper, a shell `&&` chain or
+    # cron. Count outcomes and reflect them in the exit code.
+    n_failed, n_partial = 0, 0
     for i, plate in enumerate(plates, 1):
         dest = radec / f"{plate}.csv"
         if dest.exists():
@@ -187,6 +226,7 @@ def main():
                   f"(see {logs / (plate + '.log')})", flush=True)
             with prog.open("a") as f:
                 f.write(f"{plate},0,0,0,0,0,{time.time()-t0:.0f},slice_failed\n")
+            n_failed += 1
             continue
         n_sliced = len([l for l in tiles_file.read_text().split() if l])
         if n_skip or n_sliced != args.grid ** 2:
@@ -257,6 +297,8 @@ def main():
         status = "ok" if (n_cat == n_sliced == args.grid ** 2 and n_det) else "partial"
         if args.with_vetoes and n_surv != n_sliced:
             status = "partial"
+        if status == "partial":
+            n_partial += 1
         with prog.open("a") as f:
             f.write(f"{plate},{n_sliced},{n_cat},{n_det},{n_skip},{n_surv},{dt:.0f},{status}\n")
         done = i
@@ -266,7 +308,17 @@ def main():
               + (f"{n_surv} filt, " if args.with_vetoes else "")
               + f"{dt:.0f}s   ETA {eta:.1f}h", flush=True)
 
+    ok = len(plates) - n_failed - n_partial
     print(f"\n[DONE] {time.time()-t_start:.0f}s total; lean output under {radec}")
+    print(f"[DONE] {ok} ok, {n_partial} partial, {n_failed} failed of {len(plates)} plates")
+    if n_failed:
+        raise SystemExit(f"[FATAL] {n_failed} of {len(plates)} plates failed to slice "
+                         f"-- see {out / 'slice_logs'} and {prog}")
+    if n_partial:
+        # Non-zero, distinct from a slice failure: the run produced output but not
+        # a complete one, and a caller should not treat it as a clean full run.
+        print(f"[WARN] {n_partial} plate(s) partial -- incomplete tiles or survivors")
+        sys.exit(2)
 
 
 if __name__ == "__main__":
