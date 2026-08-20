@@ -530,6 +530,21 @@ def _apply_mnras_filters_and_spikes(tile_dir: Path, sex_csv: Path, buckets: dict
             )
         )
         buckets['spikes_rejected'] += len(rejected)
+        # The spike stage used to log nothing at all, so after a run there was no
+        # record of whether the mask ran or which catalogue supplied its stars --
+        # recoverable only by inferring it from the direction of the row count.
+        # An empty star list is called out separately: `except Exception:
+        # bright = []` above degrades to NO MASK, which removes nothing and so
+        # reads downstream as a permissive catalogue rather than as a failure.
+        if not bright:
+            print('[POST][WARN]', tile_dir.name,
+                  f'spike mask ran with ZERO bright stars (catalogue={spike_cat}) '
+                  f'-- nothing was masked; treat this tile as unmasked, not as a result',
+                  flush=True)
+        else:
+            print('[POST][INFO]', tile_dir.name,
+                  f'spike mask: catalogue={spike_cat} bright={len(bright)} '
+                  f'rejected={len(rejected)} kept={len(kept)}', flush=True)
 
         # Write final filtered rows (may be empty, header preserved)
         fieldnames = (kept[0].keys() if kept else (rows[0].keys() if rows else []))
