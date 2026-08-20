@@ -38,7 +38,7 @@ from vasco.utils.stilts_wrapper import stilts_xmatch
 from astropy.table import Table
 from vasco.mnras.filters_mnras import apply_extract_filters, apply_morphology_filters
 from vasco.mnras.spikes import (
-    fetch_bright_ps1, apply_spike_cuts,
+    fetch_bright_ps1, fetch_bright_usnob, apply_spike_cuts,
     SpikeConfig, SpikeRuleConst, SpikeRuleLine
 )
 from vasco.mnras.hpm import backprop_gaia_row
@@ -468,14 +468,43 @@ def _apply_mnras_filters_and_spikes(tile_dir: Path, sex_csv: Path, buckets: dict
     # center; adding the 90″ (1.5′) spike radius gives ≈43.9′ → rounded up to 45′.
     # search_radius_arcmin=1.5 enforces the 90″ paper rule as the per-candidate gate.
 
+    # Which catalogue supplies the bright stars. PS1 is the historical default
+    # (an engineering substitution, deviation #4); 'usnob' restores the
+    # catalogue Solano et al. (2022) actually use, and makes the magnitude
+    # constants below photometrically consistent -- they are the paper's, and
+    # the paper calibrated them on USNO-B R, not PS1 r.
+    # The 90" association radius and the rules themselves do NOT change with
+    # this switch: exactly one variable moves.
+    spike_cat = (os.getenv('VASCO_SPIKE_CATALOG') or 'ps1').strip().lower()
+    if spike_cat not in ('ps1', 'usnob'):
+        raise SystemExit(f"[FATAL] VASCO_SPIKE_CATALOG={spike_cat!r} is not one of ps1|usnob")
+    # Checked HERE, not inside the try below: that try ends in
+    # `except Exception: bright = []`, which would swallow the mirror-missing
+    # error and silently run with NO spike mask at all -- a worse outcome than
+    # either catalogue. Fail before entering it.
+    if spike_cat == 'usnob' and not os.getenv('VASCO_USNOB_CACHE'):
+        raise SystemExit(
+            "[FATAL] VASCO_SPIKE_CATALOG=usnob needs VASCO_USNOB_CACHE set "
+            "(the USNO-B1.0 Parquet mirror). Refusing to run: the fallback "
+            "path would silently produce an unmasked catalogue.")
+
     center = _tile_center_from_index_or_name(tile_dir)
     bright = []
     if center:
-        cache_path = (tile_dir / 'catalogs' / 'ps1_bright_stars_r16_rad45.csv')
+        # Cache key carries the catalogue, so a PS1 cache can never be read as
+        # USNO-B (or vice versa) after a switch.
+        cache_path = (tile_dir / 'catalogs' /
+                      f'{spike_cat}_bright_stars_r16_rad45.csv')
         try:
             # Use cache if present
             if cache_path.exists() and cache_path.stat().st_size > 0:
                 bright = _read_bright_cache(cache_path)
+            elif spike_cat == 'usnob':
+                # Mirror-only by design; raises rather than degrading silently.
+                bright = fetch_bright_usnob(
+                    center[0], center[1], radius_arcmin=45.0, rmag_max=16.0
+                )
+                _write_bright_cache(cache_path, bright)
             else:
                 bright = fetch_bright_ps1(
                     center[0], center[1],

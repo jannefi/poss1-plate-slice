@@ -110,6 +110,49 @@ def fetch_bright_ps1(
                 continue
     return out
 
+# ---------------- USNO-B1.0 bright-star fetch ----------------
+def fetch_bright_usnob(
+    ra_deg: float,
+    dec_deg: float,
+    radius_arcmin: float = 45.0,
+    rmag_max: float = 16.0,
+) -> List[BrightStar]:
+    """Fetch bright stars from USNO-B1.0 for the diffraction-spike mask.
+
+    This is the catalogue Solano et al. (2022) actually use for the spike mask;
+    PS1 was this pipeline's engineering substitution (see docs/PARAMETERS.md).
+    Restoring USNO-B also makes the spike constants photometrically consistent:
+    12.4 and -0.09/15.3 are the paper's, calibrated on USNO-B R magnitudes, and
+    were previously applied to PS1 r.
+
+    A star is represented by the BRIGHTER of its two valid red magnitudes,
+    because the paper's rule tests "Rmag1 or Rmag2" -- see
+    local_cache_query.query_usnob_bright_stars for the full reasoning.
+
+    NOTE -- deliberately mirror-only, unlike fetch_bright_ps1.
+    ------------------------------------------------------------------
+    fetch_bright_ps1 falls back to a live MAST call; this does not. Two reasons:
+    the live PS1 call already measured ~31s/tile, and VizieR I/284 over a 45'
+    cone at 31,458 tiles is not a workload to point at a public service. More
+    importantly, a silent fallback that returns a DIFFERENT catalogue than the
+    one selected is precisely the class of defect this pipeline keeps finding,
+    so an unset mirror raises instead of quietly degrading. Set
+    VASCO_USNOB_CACHE (the same mirror the USNO-B veto uses).
+    """
+    from vasco.local_cache_query import query_usnob_bright_stars
+
+    stars = query_usnob_bright_stars(ra_deg, dec_deg, radius_arcmin, rmag_max)
+    if stars is None:
+        raise RuntimeError(
+            "USNO-B spike mask requested but VASCO_USNOB_CACHE is not set. "
+            "This function is mirror-only by design -- it will not silently "
+            "fall back to PS1 or to a live VizieR query. Point "
+            "VASCO_USNOB_CACHE at the USNO-B1.0 Parquet mirror, or select the "
+            "PS1 mask instead (VASCO_SPIKE_CATALOG=ps1)."
+        )
+    return stars
+
+
 # ---------------- spike rules ----------------
 @dataclass
 class SpikeRuleConst:
