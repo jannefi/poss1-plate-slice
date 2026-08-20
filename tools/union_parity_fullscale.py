@@ -39,6 +39,13 @@ How to validate
 
 Each arm must report a plausible detection count in its [ARM] line; an arm that
 silently reads zero files would otherwise show as 0% and look like a result.
+
+Outputs: union_fullscale.json (the recall table), per_row.csv (one row per
+reference row: ref_index, ra, dec, and each arm's nearest-detection distance in
+arcsec, empty where nothing lies within --max-arcsec), plus dists.npy and
+arm_order.json for backward compatibility. Use per_row.csv for anything
+positional -- it carries the coordinates, so it needs no assumption about the
+reference CSV's row order.
 """
 from __future__ import annotations
 
@@ -166,7 +173,36 @@ def main():
     np.save(Path(args.out_dir) / "dists.npy",
             np.vstack([dists[k] for k in dists]))
     (Path(args.out_dir) / "arm_order.json").write_text(json.dumps(list(dists)))
+
+    # Per-row dump, carrying the coordinates.
+    #
+    # dists.npy above holds the same numbers, but positionally: recovering which
+    # reference row a column belongs to means re-reading --ref-csv and trusting
+    # that its row order has not changed. That is a silent-coupling trap, and it
+    # blocks the analyses this per-row data is actually wanted for -- binning
+    # recall by position (distance from plate centre, galactic latitude, dec),
+    # which all need RA/Dec joined to the distance.
+    #
+    # Written unconditionally: a reference catalogue is thousands of rows, not
+    # millions, so this costs nothing and cannot be forgotten at the point of
+    # use, unlike a flag.
+    #
+    # An arm with no counterpart inside --max-arcsec is left EMPTY rather than
+    # written as a number. Emitting the cap (or an inf) would let a downstream
+    # `dist <= r` comparison read "no detection anywhere" as a real measurement.
+    per_row = Path(args.out_dir) / "per_row.csv"
+    labels = list(dists)
+    with per_row.open("w", newline="", encoding="utf-8") as f:
+        w = csv.writer(f, lineterminator="\n")
+        w.writerow(["ref_index", "ra", "dec"] + [f"dist_{l}_arcsec" for l in labels])
+        for i in range(len(ref_ra)):
+            row = [i, f"{ref_ra[i]:.8f}", f"{ref_dec[i]:.8f}"]
+            for l in labels:
+                d = dists[l][i]
+                row.append("" if not np.isfinite(d) else f"{d:.4f}")
+            w.writerow(row)
     print(f"\nwrote {args.out_dir}/union_fullscale.json")
+    print(f"wrote {per_row}  ({len(ref_ra)} rows, arms: {', '.join(labels)})")
 
 
 if __name__ == "__main__":
