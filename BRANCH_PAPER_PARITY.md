@@ -35,8 +35,27 @@ defensible paper-parity figure. 94.5% of release rows are retained, and the
 excess is broad (16 of 17 plates, spread 3-42%) rather than concentrated in a
 few pathological tiles.
 
-**Conclusion: "no coordinate correction" and "a 5″ veto radius" are internally
-inconsistent.** An alignment step is implied by the method even though the paper
-never states one, which is why `main` keeps WCSFIX on.
+**Conclusion — corrected 2026-08-21.** An earlier revision of this file argued
+that the paper's method *implied* an unstated alignment step. That inference went
+beyond the data and is withdrawn: it generalized this pipeline's astrometric
+error tail to the original pipeline. The defensible statement is narrower.
+
+A 5″ cross-match veto presupposes astrometry comfortably inside 5″. Whether the
+original pipeline met that with its native plate solutions alone, or by some
+unstated step, cannot be determined from the paper. What *is* measured here
+applies to this pipeline: slicing tiles from full-plate scans leaves a
+field-dependent astrometric residual (median ~0.5″, p90 ~1.7″, max ~6.8″ against
+Gaia), and on the small tail of tiles where that residual approaches 5″ a
+raw-coordinate veto silently passes catalogued stars — the failure measured
+above. WCSFIX exists to remove that failure mode, and the rows it keeps out are
+Gaia-catalogued stars. `main` keeps it on as an engineering requirement of this
+pipeline's own astrometry, not as a reconstruction of anything the original
+pipeline is claimed to have done.
+
+Per-lever attribution (2026-08-21) reinforces this: regenerating the release
+configuration post-hoc from the same detections shows the +11.8% is essentially
+all lever 3 — **88.9% of the gained rows sit on a USNO-B source within 5″**,
+against 0.0% of the rows both configurations share — with lever 4 net negative.
+The excess measures a veto stage, not astrometry, and not missed transients.
 
 Anything quoted from this branch must name both the arm and the stage.
