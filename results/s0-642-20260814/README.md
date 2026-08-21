@@ -22,6 +22,7 @@ catalogue — see [`tools/audit_independence.py`](../../tools/audit_independence
 | `RUN_SUMMARY.txt` | — | parameters and counts as the build recorded them |
 | `repaired_astrometry_tiles.csv` | 14 | the 8 repaired tiles and the 6 that were never defective |
 | `primary_plate_flags.csv.gz` | 122,820 | per-row coverage partition (added 2026-08-15, see below) |
+| `s0_footprint_overlay.png` | — | sky-coverage figure (added 2026-08-21, see below) |
 | `SHA256SUMS` | — | integrity of the files as shipped |
 | `SHA256SUMS.uncompressed` | — | integrity of the *contents* |
 
@@ -48,6 +49,50 @@ are what identify the catalogue and what a citation should pin.
 sha256sum -c SHA256SUMS               # the files as shipped
 zcat stage_S0.csv.gz | sha256sum      # must equal the table above
 ```
+
+### The footprint figure
+
+`s0_footprint_overlay.png` — what sky this release actually covers, and where the
+candidates fall in it. Publishing a footprint overlay with each release is the
+convention this project follows.
+
+It is built **only from artifacts in this directory** (`tile_manifest.csv.gz` and
+`stage_S0.csv.gz`), so anyone who downloads the release can regenerate the exact
+figure and check it against the data rather than taking it on trust:
+
+```bash
+python3 tools/s0_footprint_overlay.py --release-dir results/s0-642-20260814
+```
+
+Two panels, because they answer different questions.
+
+- **Top** — tile centres (31,458) with S0 positions (122,820) over them. The tile
+  layer is drawn as a broad, faint field and the candidates as fine points,
+  because there are four times as many candidates as tiles and equal marker sizes
+  bury the footprint under them.
+- **Bottom** — S0 alone with large opaque markers. This exists so the figure can
+  be compared by eye against published transient-sample figures without the
+  comparison being an artifact of plotting style. Marker area and panel geometry
+  move apparent density by about an order of magnitude at fixed row count, which
+  is more than any difference between real catalogues of this size.
+
+What is visible in it, and is not a defect:
+
+- **Rectangular over-densities tracing plate boundaries** — candidates are
+  enriched near plate edges. Real, and the reason `primary_plate_flags.csv.gz`
+  ships a coverage partition.
+- **A void at RA 270–300, Dec 5–25** — the galactic plane. Those 801 tiles
+  average **0.54** S0 rows against **4.23** elsewhere, 7.9× down: high stellar
+  density means most detections match a catalogue and are vetoed. Expected.
+- **A thin strip below Dec 0** — 6,648 rows (5.4%) on 1,477 tiles. This release
+  is not strictly northern.
+- **5,394 tiles produced no candidate at all.** They are in the manifest with
+  `rows_emitted_to_S0 = 0`; absence from `stage_S0.csv` is not absence from the
+  footprint, which is why coverage must be taken from the manifest and never from
+  the tile_ids present in the catalogue.
+
+There is deliberately no reference-catalogue layer: overlaying an unpublished list
+would make the figure unreproducible for a reader.
 
 ## What changed from the 2026-08-13 build
 
