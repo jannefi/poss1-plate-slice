@@ -61,17 +61,32 @@ remains citable and is the primary reference here. Second, the 22,309 file was
 pre-filtered by the original team rather than recomputed independently, so it
 evidences *what they meant* rather than providing a separate measurement.
 
-**Consequence, on their own published figures:** the catalogue holds
-107,875 transients across 635 plates (arXiv:2604.00056), of which 22,314 survive
-the 2° criterion — so their own edge criterion sets aside **79.3%** of the
-catalogue whenever an analysis depends on it.
+**Consequence, on their own published figures:** the sentence quoted above
+introduces **106,339** transients with decl. > 0° and then counts **22,314**
+within 2° of centre, so the retained fraction on the denominator that sentence
+establishes is **21.0%** — their own edge criterion sets aside **79.0%** of the
+working sample whenever an analysis depends on it.
+
+Read the denominator carefully here: 22,314 is a subset of the **106,339**
+northern transients, not of the full **107,875** across 635 plates
+(arXiv:2604.00056). Against the full catalogue the same count would read 20.7%,
+and quoting it that way silently mixes two different samples. This is a reading of
+the antecedent rather than a certainty — but it is the same contextual reading the
+section above uses to settle the retained-versus-discarded question, and applying
+it to the numerator but not the denominator would be inconsistent.
 
 ### "Within 2° of plate center" is under-specified
 
 Doherty's paper computes its own centre-of-plate subset by "unit-vector
 averaging of source positions per plate" and retains **31,525 transients
-(29.2% of the 107,875 in arXiv:2604.00056)** — against the 20.7% implied by
-PASP's 22,314. The same
+(29.2% of the 107,875 in arXiv:2604.00056)** — against the **21.0%** implied by
+PASP's 22,314 of 106,339.
+
+**The two figures do not share a denominator**, so the raw difference overstates
+the disagreement between the two centre definitions. Putting both on a decl. > 0
+base and bounding by how many of the 1,536 southern rows could fall inside 2°,
+Doherty's fraction lies between **28.2%** and **29.65%** — a criterion gap of
+**7.2 to 8.7 points**. The conclusion is unaffected; only the precision is. The same
 stated criterion therefore selects materially different subsets depending on
 whether "plate center" means **the centre of the plate** or **the centroid of
 the transients found on it**. Those coincide only where a plate's transients
@@ -79,6 +94,11 @@ carry no net offset from its centre, and the ~8.5-point gap between the two
 published figures is itself evidence that they often do — which matters here,
 because a centroid computed from the very population under test moves with any
 asymmetry in that population, including one caused by edge contamination.
+
+One further consequence of the mismatch: **9 points of yield is the same order as
+the entire ambiguity**, so a reproduction that silently picks a centre definition
+*and* a denominator can differ from the published figure by more than either
+choice alone.
 
 `--pasp2025` uses the plate's actual centre, taken from the scan's WCS. Anyone
 reproducing a published edge-masked count should state which definition they
@@ -146,8 +166,9 @@ geometry checks with no pipeline state.
 | after SuperCOSMOS + PTF | 71,654 | 11,322 | **15.8%** |
 
 For scale, the same criterion retains 22.9% of the published vanish-possi
-catalogue (R) and 20.7% of the VASCO transient list (22,314 of the
-107,875 reported in arXiv:2604.00056).
+catalogue (R) and 21.0% of the VASCO transient list (22,314 of the
+106,339 decl. > 0 transients that count is scoped to; 20.7% if taken against the
+full 107,875 reported in arXiv:2604.00056).
 
 **This catalogue is rim-heavy by construction, and that is not a quality
 statement.** Full-plate slicing tiles the entire plate including its corners;
