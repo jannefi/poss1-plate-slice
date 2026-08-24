@@ -32,10 +32,18 @@ Dedup policy (science-grade; WCSFIX-ready):
  Duplicates defined globally (no plate_id partition) by true angular separation:
    sep_arcsec(ra,dec) <= dedup_tol_arcsec
  Robust spatial hashing in unit-sphere XYZ coordinates.
- Deterministic representative selection per cluster: tie-break by src_id.
+ Representative selection per cluster: prefer the member with the LARGEST
+ edge_dist_arcmin (farthest from its own detected plate's array boundary --
+ least likely to be a vignetted/edge detection of the same real source seen
+ twice across overlapping plates). Falls back to the prior deterministic
+ tie-break (lexicographically smallest src_id) whenever any member's plate
+ is unresolved in the header registry, or on an exact edge-distance tie.
  (Previously partitioned by plate_id before comparing; that silently missed
  true duplicates whose two detections carried different plan-assigned
- plate_id labels near plate junctions/overlaps -- fixed 2026-08-02.)
+ plate_id labels near plate junctions/overlaps -- fixed 2026-08-02. The
+ lexicographic-only tie-break was itself quality-blind -- a coin flip
+ between the well-exposed and the vignetted detection of the same source --
+ fixed 2026-08-24, see docs/PLATE_EDGE_MASK.md.)
 """
 
 import argparse
@@ -43,8 +51,22 @@ import csv
 import datetime as _dt
 import json
 import math
+import sys
 from pathlib import Path
 from typing import Dict, Iterable, List, Optional, Set, Tuple
+
+# Reused (not reimplemented) for dedup's edge-aware tie-break: the plate
+# header registry loader and its per-plate WCS reconstruction already live
+# in stage_edge_post_v2.py, validated this session against confirmed
+# ground-truth edge artifacts (docs/PLATE_EDGE_MASK.md). Import defensively
+# -- if numpy/astropy or the sibling script are unavailable for any reason,
+# dedup degrades to its prior behaviour (pure lexicographic tie-break) rather
+# than hard-failing a script that otherwise has no such dependency.
+try:
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    import stage_edge_post_v2 as _edge_v2
+except Exception:
+    _edge_v2 = None
 
 
 # ----------------------------
@@ -266,11 +288,35 @@ class UnionFind:
             self.rank[ra] += 1
 
 
-def dedup_rows_by_plate_radius_xyz(rows: List[dict], tol_arcsec: float) -> Tuple[List[dict], int]:
+def edge_dist_arcmin(ra: float, dec: float, plate_id: str, plates: Dict[str, dict]) -> Optional[float]:
+    """Distance from (ra, dec) to the ARRAY BOUNDARY of `plate_id`'s own WCS,
+    in arcmin. Same formula as stage_edge_post_v2.py's process_chunk
+    (min(px, NAXIS1-px, py, NAXIS2-py) * pixel_scale) -- reused here as a
+    scalar for dedup tie-breaking rather than reimplemented independently.
+    Returns None if the plate is unresolved or has no reconstructible WCS,
+    so callers can fall back rather than trust a wrong answer.
+    """
+    pl = plates.get(plate_id)
+    if not pl or pl.get("wcs") is None:
+        return None
+    try:
+        px, py = pl["wcs"].world_to_pixel_values(ra, dec)
+        d_px = min(float(px), pl["nax1"] - float(px), float(py), pl["nax2"] - float(py))
+        return d_px * pl["as_per_px_x"] / 60.0
+    except Exception:
+        return None
+
+
+def dedup_rows_by_plate_radius_xyz(
+    rows: List[dict], tol_arcsec: float, plates: Optional[Dict[str, dict]] = None
+) -> Tuple[List[dict], int, Dict[str, int]]:
     """
     Science-grade global dedup by true angular separation <= tol_arcsec.
     Robust neighbor search uses XYZ unit-sphere binning (3D spatial hash).
-    Representative selection: deterministic tie-break by src_id (lexicographic).
+    Representative selection: prefer the member farthest from its own
+    plate's array edge (see edge_dist_arcmin); falls back to the prior
+    deterministic tie-break by src_id (lexicographic) when `plates` is not
+    given, a member's plate is unresolved, or on an exact distance tie.
     Output ordering follows original input order of chosen representatives.
 
     Previously partitioned by plate_id before comparing, which silently missed
@@ -281,11 +327,13 @@ def dedup_rows_by_plate_radius_xyz(rows: List[dict], tol_arcsec: float) -> Tuple
     geometrically nearby points regardless of total row count, so removing the
     partition adds negligible cost (~1s at 255,921 rows) while fixing the miss.
     """
+    empty_stats = {"multi_member_clusters": 0, "edge_decided": 0,
+                    "fallback_lexicographic": 0, "changed_vs_lexicographic": 0}
     if not rows:
-        return rows, 0
+        return rows, 0, dict(empty_stats)
     tol_arcsec = float(tol_arcsec)
     if tol_arcsec <= 0:
-        return rows, 0
+        return rows, 0, dict(empty_stats)
 
     cell = tol_arcsec_to_chord(tol_arcsec)
     if cell <= 0:
@@ -323,19 +371,46 @@ def dedup_rows_by_plate_radius_xyz(rows: List[dict], tol_arcsec: float) -> Tuple
         comps.setdefault(root, []).append(i)
 
     chosen_indices: Set[int] = set()
+    stats = dict(empty_stats)
     for members in comps.values():
         if len(members) == 1:
             chosen_indices.add(members[0])
             continue
 
+        stats["multi_member_clusters"] += 1
+
         def rep_key(i: int) -> str:
             return str(rows[i].get("src_id") or "")
 
-        rep_i = min(members, key=rep_key)
+        lexicographic_pick = min(members, key=rep_key)
+        rep_i = lexicographic_pick
+
+        if plates:
+            dists: Dict[int, float] = {}
+            for i in members:
+                d = edge_dist_arcmin(float(rows[i]["ra"]), float(rows[i]["dec"]),
+                                      str(rows[i].get("plate_id") or ""), plates)
+                if d is None:
+                    dists.clear()
+                    break
+                dists[i] = d
+            if len(dists) == len(members):
+                best = max(dists.values())
+                tied = [i for i in members if dists[i] == best]
+                rep_i = tied[0] if len(tied) == 1 else min(tied, key=rep_key)
+                stats["edge_decided"] += 1
+            else:
+                stats["fallback_lexicographic"] += 1
+        else:
+            stats["fallback_lexicographic"] += 1
+
+        if rep_i != lexicographic_pick:
+            stats["changed_vs_lexicographic"] += 1
+
         chosen_indices.add(rep_i)
 
     out = [rows[i] for i in range(len(rows)) if i in chosen_indices]
-    return out, len(rows) - len(out)
+    return out, len(rows) - len(out), stats
 
 
 # ----------------------------
@@ -378,6 +453,12 @@ def main():
                     help="Disable astronomical dedup (not recommended).")
     ap.add_argument("--dedup-round-digits", type=int, default=6,
                     help="(deprecated/ignored) old rounding-based dedup parameter.")
+    ap.add_argument("--headers-dir", default="/srv/vasco/vasco60/metadata/plates/headers",
+                    help="Plate header registry (*.header.json), used only to break dedup "
+                         "duplicate-cluster ties by preferring the detection farther from "
+                         "its own plate's array edge over an arbitrary lexicographic pick. "
+                         "Missing/unresolvable plates fall back to the prior src_id "
+                         "tie-break for that cluster only.")
 
     ap.add_argument("--write-raw-stage-and-uploads", action="store_true",
                     help="Also write stage/uploads for the raw (non-dedup) set.")
@@ -390,6 +471,18 @@ def main():
     run_dir.mkdir(parents=True, exist_ok=True)
 
     plate_map = load_plate_map(Path(args.plate_map_csv))
+
+    plates: Dict[str, dict] = {}
+    if args.dedup_enable and _edge_v2 is not None:
+        try:
+            _geom = _edge_v2._load_geometry_module()
+            plates = _edge_v2.load_plate_centres(Path(args.headers_dir), _geom)
+        except Exception as e:
+            print(f"[WARN] could not load plate header registry ({args.headers_dir}): {e} "
+                  f"-- dedup will fall back to lexicographic tie-break for all clusters", file=sys.stderr)
+    elif args.dedup_enable:
+        print("[WARN] stage_edge_post_v2 unavailable -- dedup will fall back to "
+              "lexicographic tie-break for all clusters", file=sys.stderr)
 
     tiles = list(iter_tile_dirs(Path(args.tiles_root)))
     seen_tile_ids: Set[str] = set()
@@ -516,8 +609,10 @@ def main():
     # astronomical dedup
     dedup_rows = base_rows
     dedup_dropped = 0
+    dedup_stats: Dict[str, int] = {}
     if args.dedup_enable:
-        dedup_rows, dedup_dropped = dedup_rows_by_plate_radius_xyz(base_rows, args.dedup_tol_arcsec)
+        dedup_rows, dedup_dropped, dedup_stats = dedup_rows_by_plate_radius_xyz(
+            base_rows, args.dedup_tol_arcsec, plates=plates)
 
     final_rows = dedup_rows
 
@@ -578,8 +673,14 @@ def main():
             f"S0_rows_unique_src_id: {len(base_rows)}",
             f"S0_src_id_duplicates_dropped: {dup_srcid_dropped}",
             f"dedup_enabled: {bool(args.dedup_enable)}",
-            f"dedup_method: global angular_sep <= {args.dedup_tol_arcsec:.3f}\" (no plate_id partition; XYZ spatial hash; deterministic rep: src_id)",
+            f"dedup_method: global angular_sep <= {args.dedup_tol_arcsec:.3f}\" (no plate_id partition; "
+            f"XYZ spatial hash; rep: max edge_dist_arcmin from own plate WCS, fallback src_id lexicographic)",
             f"dedup_rows: {len(dedup_rows)} (dropped={dedup_dropped})",
+            f"dedup_tiebreak_multi_member_clusters: {dedup_stats.get('multi_member_clusters', 0)}",
+            f"dedup_tiebreak_edge_decided: {dedup_stats.get('edge_decided', 0)}",
+            f"dedup_tiebreak_fallback_lexicographic: {dedup_stats.get('fallback_lexicographic', 0)}",
+            f"dedup_tiebreak_changed_vs_lexicographic: {dedup_stats.get('changed_vs_lexicographic', 0)}",
+            f"headers_dir: {args.headers_dir}",
             f"final_rows_for_stage_and_uploads: {len(final_rows)} (dedup set)",
             f"plate_map_csv: {args.plate_map_csv}",
             f"master_csv: {master_base_path.name}",
@@ -595,6 +696,10 @@ def main():
     print(f"[OK] tiles: scanned={len(uniq_tiles)} processed={len(uniq_tiles) - delta_skipped} skipped(delta)={delta_skipped}")
     print(f"[OK] master(base): {master_base_path.name} rows={len(base_rows)} (dup_src_id_dropped={dup_srcid_dropped})")
     print(f"[OK] dedup: {master_dedup_path.name} rows={len(dedup_rows)} (dropped={dedup_dropped})")
+    print(f"[OK] dedup tie-break: {dedup_stats.get('multi_member_clusters', 0)} multi-member clusters, "
+          f"{dedup_stats.get('edge_decided', 0)} edge-decided, "
+          f"{dedup_stats.get('fallback_lexicographic', 0)} fell back to lexicographic, "
+          f"{dedup_stats.get('changed_vs_lexicographic', 0)} picks changed vs. the old rule")
     print(f"[OK] FINAL stage/uploads (dedup): rows={len(final_rows)}")
     print(f"[OK] manifest: {manifest_path.name} rows={len(manifest_rows)}")
 
