@@ -223,6 +223,45 @@ geometric cut is a cross-check on it rather than an additional filter.
 
 ---
 
+### Ground-truth validation: two identified artifact classes
+
+A 9-plate paper-parity pilot (6 hot plates + 3 controls) turned up two
+concrete, visually identifiable, non-astronomical sources of S0 rows near
+plate edges — not "dust specks that might be real," but unambiguous plate
+content:
+
+- **The printed plate title/border text** ("...SOCIETY - PALOMAR OBSERVATORY
+  SKY SURVEY"), which SExtractor detects as spurious point sources.
+- **Vertical scan-edge striping/banding** near the plate's outer margin.
+
+Both were confirmed as properties of the source plate data, not a delivery
+artifact — pixel-identical whether served via bulk IRSA download or the
+STScI cutout service, checked on 3 independent plates.
+
+Checking `edge_dist_arcmin` against the *specific* rows sitting on each
+artifact (not an arbitrary row from the same tile — `edge_dist_arcmin` is a
+per-row quantity and a tile spans enough sky that one row can sit metres
+from the boundary while another in the same tile sits arcminutes away):
+
+| artifact | tile | rows checked | `edge_dist_arcmin` |
+|---|---|---:|---:|
+| title text | XE366, top-Dec rows in its title-text tile | 8 | 4.7 – 7.6 |
+| scan-edge striping | XE074, low-RA rows in its striping tile | 8 | 1.4 – 2.5 |
+
+Both land squarely inside the already-measured "nearly free" band — the 10′
+cut (21% of S0, zero cost in R matches) covers the title text, and the 5′
+cut (7.6%, zero cost) comfortably covers the striping. **No new instrument
+is needed for either artifact class: `edge_dist_arcmin` already targets them
+precisely**, at a threshold this document had already shown was close to
+free before this ground truth existed to confirm it against.
+
+This also sharpens the caveat below about visual inspection being
+inconclusive at the rim generally — that stands for the *ordinary* rim
+population (plausible real sources at 2.7–3.0°), but these two specific,
+identifiable artifact classes are the exception: their pixel content is
+unambiguous, and their position matches this metric closely enough to
+resolve which existing lever addresses them.
+
 ## Conclusions
 
 1. **2° is the source's own criterion**, confirmed by two independent sources,
@@ -238,6 +277,12 @@ geometric cut is a cross-check on it rather than an additional filter.
 5. **Distance to the array boundary is the better lever** — 21% of rows for
    zero cost in published-catalogue recall, against 65% for a comparable
    radial cut.
+6. **Ground-truthed, not just theorized.** Two concrete, visually-confirmed
+   artifact classes — printed plate title text and scan-edge striping —
+   land at 4.7-7.6′ and 1.4-2.5′ from the array edge respectively, both
+   inside the already-measured near-free band. `edge_dist_arcmin` was the
+   right lever before this check; this confirms it against real examples
+   rather than the general rim population.
 
 ## Caveats
 
