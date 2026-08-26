@@ -43,6 +43,11 @@ SLICE_WORKERS="${SLICE_WORKERS:-14}"
 # overlap in the background if the VM outpaces janne-pc, and 6+6 still fits
 # nproc without starving whichever one is further along.
 VETO_WORKERS="${VETO_WORKERS:-6}"
+# Minimum free space (GB) on the filesystem backing $LOCAL_TILES before
+# starting a plate's pull. One plate's tile tree is ~3-4GB; 50GB is a wide
+# margin. Added after the 2026-08-25/26 incident: a full disk crashed both
+# arms mid-rsync (silent, 12h unnoticed) instead of stopping cleanly.
+MIN_FREE_GB="${MIN_FREE_GB:-50}"
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$REPO_ROOT"
@@ -53,6 +58,21 @@ PLATE_EPOCHS="$LOCAL_ROOT/plate_epochs.csv"
 LOG_DIR="$LOCAL_ROOT/veto_logs"
 mkdir -p "$LOCAL_TILES" "$LOG_DIR"
 PYTHON_BIN="${PYTHON_BIN:-/home/janne/.micromamba/envs/vasco-py311/bin/python3.11}"
+
+# Record identity for the watchdog (scripts/gcp/watchdog.sh) so it can find
+# and safely restart this process without guessing or pattern-matching.
+echo "$$" > "$LOCAL_ROOT/orchestrator.pid"
+echo "$GCP_HOST" > "$LOCAL_ROOT/gcp_host.txt"
+[ -n "${INSTANCE:-}" ] && echo "$INSTANCE" > "$LOCAL_ROOT/gcp_instance.txt"
+
+check_disk_space() {
+  local AVAIL_KB; AVAIL_KB=$(df --output=avail -k "$LOCAL_TILES" | tail -1 | tr -d ' ')
+  local AVAIL_GB=$((AVAIL_KB / 1024 / 1024))
+  if [ "$AVAIL_GB" -lt "$MIN_FREE_GB" ]; then
+    echo "[FATAL] low disk space on $(df --output=target "$LOCAL_TILES" | tail -1 | tr -d ' '): ${AVAIL_GB}GB free, need >= ${MIN_FREE_GB}GB -- stopping before the next pull rather than crashing mid-rsync" >&2
+    exit 1
+  fi
+}
 
 BRANCH="$(git rev-parse --abbrev-ref HEAD)"
 [ "$BRANCH" = "paper-parity" ] || { echo "[FATAL] repo is on '$BRANCH', not paper-parity -- VASCO_SPIKE_CATALOG is dead on main" >&2; exit 1; }
@@ -127,6 +147,7 @@ for PLATE in "${PLATE_ARR[@]}"; do
   if [ -f "$DONE_MARK" ]; then
     echo "[$PLATE] already pulled, skipping slice+pull (still queuing step4/5 if not done)"
   else
+    check_disk_space
     echo "[$PLATE] waiting for fetch_plates.sh to finish downloading this plate on the VM..."
     wait_for_plate_fetched "$PLATE" || exit 1
     rsync -az -e "ssh ${SSH_OPTS[*]}" \
