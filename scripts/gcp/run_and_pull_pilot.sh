@@ -30,6 +30,17 @@
 #     ./scripts/gcp/run_and_pull_pilot.sh
 set -euo pipefail
 
+# Explicit PATH, not just whatever the caller happened to have. Needed
+# because this script is now sometimes launched by scripts/gcp/watchdog.sh
+# under cron, whose default PATH (/usr/bin:/bin) omits /usr/local/bin --
+# where `stilts` lives. Found 2026-08-26: a watchdog-triggered restart ran
+# step4/5 for XE287/XE289 entirely under that stripped PATH and every tile
+# failed with "Required tool 'stilts' not found in PATH", silently (no
+# hard stop -- see the background-job FAILED handling below), because a
+# manual interactive relaunch earlier in the same incident had a normal
+# login PATH and masked the problem for the plates it touched.
+export PATH="/usr/local/bin:/usr/bin:/bin:${PATH:-}"
+
 : "${GCP_HOST:?Set GCP_HOST to the external IP of the VM}"
 : "${PLATES:?Set PLATES to a comma-separated plate list}"
 GCP_USER="${GCP_USER:-janne}"
@@ -38,6 +49,8 @@ REMOTE_DIR="${REMOTE_DIR:-/home/${GCP_USER}/poss1-plate-slice}"
 REMOTE_OUT="${REMOTE_OUT:-/home/${GCP_USER}/work/pilot}"
 REMOTE_PLATE_DIR="${REMOTE_PLATE_DIR:-/home/${GCP_USER}/data/plates}"
 REMOTE_PYTHON="${REMOTE_PYTHON:-/home/${GCP_USER}/.micromamba/envs/vasco-py311/bin/python3.11}"
+# n2-standard-16 has 16 vCPUs; 14 leaves 2 free for the OS, sshd, and the
+# rsync pull running concurrently on the VM, rather than saturating all 16.
 SLICE_WORKERS="${SLICE_WORKERS:-14}"
 # Lower than a full 12-core budget: two plates' step4/5 can occasionally
 # overlap in the background if the VM outpaces janne-pc, and 6+6 still fits

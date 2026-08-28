@@ -94,7 +94,39 @@ check_arm() {
   DONE=$(ls "$LOCAL_ROOT"/.pulled_* 2>/dev/null | wc -l)
 
   if [ "$DONE" -ge "$TOTAL" ]; then
-    log "arm $TAG: finished ($DONE/$TOTAL) -- nothing to do"
+    local SHUTDOWN_MARK="$LOCAL_ROOT/.vm_shutdown_done"
+    if [ -f "$SHUTDOWN_MARK" ]; then
+      log "arm $TAG: finished ($DONE/$TOTAL), VM already shut down -- nothing to do"
+      return
+    fi
+    # VM's only job is steps 1-3 (slice); step4/5 runs entirely on janne-pc
+    # using local catalog mirrors, so once every plate is pulled the VM has
+    # nothing left to do, ever, for this arm -- safe to delete regardless of
+    # step4/5 progress. Added 2026-08-27, explicitly approved by Janne:
+    # previously this only logged "finished" and left the VM running (and
+    # billing) until a human ran scripts/gcp/shutdown_vm.sh by hand -- risky
+    # for an overnight finish while he's asleep.
+    local INSTANCE=""
+    [ -f "$INSTFILE" ] && INSTANCE=$(cat "$INSTFILE")
+    if [ -z "$INSTANCE" ]; then
+      note "arm $TAG: finished ($DONE/$TOTAL) but no $INSTFILE recorded -- cannot auto-shutdown, needs a human"
+      return
+    fi
+    local STATUS
+    STATUS=$("$GCLOUD" compute instances describe "$INSTANCE" --zone="$ZONE" --project="$PROJECT" \
+      --format="value(status)" 2>/dev/null)
+    if [ -z "$STATUS" ]; then
+      log "arm $TAG: finished ($DONE/$TOTAL), VM $INSTANCE already gone"
+      touch "$SHUTDOWN_MARK"
+      return
+    fi
+    note "arm $TAG: finished ($DONE/$TOTAL) -- auto-deleting VM $INSTANCE to stop billing"
+    if "$GCLOUD" compute instances delete "$INSTANCE" --zone="$ZONE" --project="$PROJECT" --quiet 2>>"$LOG"; then
+      note "arm $TAG: VM $INSTANCE deleted"
+      touch "$SHUTDOWN_MARK"
+    else
+      note "arm $TAG: VM $INSTANCE delete FAILED -- needs a human, see $LOG"
+    fi
     return
   fi
 
@@ -120,6 +152,28 @@ check_arm() {
   fi
 
   if [ "$PID_ALIVE" -eq 1 ]; then
+    # Alive is not the same as making progress. Added 2026-08-27 after a
+    # router reboot left both orchestrators hung on a stale SSH channel --
+    # the remote work had already finished (0% VM CPU) but the local ssh
+    # client never got the completion signal, so it sat blocked forever
+    # with its own PID still alive. The dead-pidfile check below never
+    # fires for that case. Only a human noticing caught it that morning;
+    # this closes the gap for when nobody's watching (e.g. overnight ISP
+    # maintenance). Threshold checked live against a real slow-but-healthy
+    # plate the same day: still going strong (fresh VM-side sex/psfex
+    # processes, real progress) at 16+ minutes quiet log -- so this needs
+    # real margin above "slow," not just above the ~5-15min typical case.
+    # 2400s (40min) leaves that margin while still catching a genuine
+    # all-night hang long before morning.
+    local ORCH_LOG_AGE_S=999999
+    if [ -f "$ORCH_LOG" ]; then
+      ORCH_LOG_AGE_S=$(( $(date +%s) - $(stat -c %Y "$ORCH_LOG") ))
+    fi
+    if [ "$ORCH_LOG_AGE_S" -ge 2400 ]; then
+      note "arm $TAG: STALLED (pid alive, $DONE/$TOTAL pulled, log quiet ${ORCH_LOG_AGE_S}s) -- killing so the next tick's dead-pidfile check can restart it cleanly"
+      kill -9 "$PID" 2>/dev/null
+      return
+    fi
     log "arm $TAG: alive ($DONE/$TOTAL pulled)"
     return
   fi
