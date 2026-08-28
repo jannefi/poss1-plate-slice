@@ -1,0 +1,4 @@
+# sha256 of the DECOMPRESSED contents -- the stable identifier.
+cdd8e5500819eff752fc0d7a630a7909f58e57f53eb3391022ecc3bb976902fa  stage_S0.csv
+5c7d8848b6333dae54b6f95cc5985148a786c01a93f727c42b788445504e0e8a  tile_manifest.csv
+0841d5e251ff06d4ce8628b59a03161df7834962ac5ac7916d7aa7ccd867ed24  verification_s0_gaia_invariant.csv
