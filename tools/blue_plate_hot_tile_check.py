@@ -157,7 +157,7 @@ def render_tile(tile_id, bands_data, args):
 
     out_png = Path(args.out_dir) / "png"
     out_png.mkdir(parents=True, exist_ok=True)
-    fig, axes = plt.subplots(1, 2, figsize=(14, 7))
+    fig, axes = plt.subplots(1, 2, figsize=(14, 7.6))
     zs = ZScaleInterval()
     for ax, band in zip(axes, ["red", "blue"]):
         data, w, px, py, z, on_array = bands_data[band]
@@ -166,9 +166,14 @@ def render_tile(tile_id, bands_data, args):
         ok = on_array
         ax.scatter(px[ok], py[ok], s=18, facecolors="none",
                   edgecolors=np.where(z[ok] > 3, "lime", "red"), linewidths=1.0)
-        ax.set_title(f"{tile_id}  [{band}]  (green=z>3, red=z<=3 or off-array excluded above)")
+        ax.set_title(band, fontsize=13)
         ax.set_xticks([]); ax.set_yticks([])
-    fig.tight_layout()
+    # One shared title + one shared legend line, not per-panel -- long
+    # per-panel titles used to overlap where the two subplots meet.
+    fig.suptitle(tile_id, fontsize=13, y=0.99)
+    fig.text(0.5, 0.015, "green = z>3 (significant local flux)   "
+             "red = z<=3 or off-array", ha="center", fontsize=10)
+    fig.tight_layout(rect=(0, 0.03, 1, 0.96))
     fig.savefig(out_png / f"{tile_id}.png", dpi=110)
     plt.close(fig)
     print(f"  [{tile_id}] wrote {out_png}/{tile_id}.png")
