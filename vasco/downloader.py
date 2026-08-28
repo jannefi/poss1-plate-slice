@@ -27,6 +27,27 @@ SURVEY_ALIASES = {
     'poss1-e'   : 'DSS1 Red',
 }
 
+# STScI dss_search 'v=' plate-series values, one per SURVEY_ALIASES key.
+# FOUND 2026-08-28: _stscidss_params used to hardcode 'v': 'poss1_red' for every
+# survey key -- dss1-blue (and every dss2-* alias) silently returned red POSS-I E
+# data, byte-identical to a real dss1-red request at the same position (confirmed:
+# same SHA256, header SURVEY=POSSI-E both times). Never exercised by any caller in
+# either repo before this fix (grepped both), so nothing published depends on the
+# broken behaviour. 'dss1'/'dss' are left pointing at poss1_red -- ambiguous
+# aliases, no caller has ever asked for them to resolve to blue, and STScI's own
+# 'v=' has no generic "either colour" value; use 'dss1-red'/'dss1-blue' explicitly
+# when the colour matters.
+STSCI_V_PARAM = {
+    'dss1'      : 'poss1_red',
+    'dss1-red'  : 'poss1_red',
+    'dss1-blue' : 'poss1_blue',
+    'dss'       : 'poss1_red',
+    'dss2-red'  : 'poss2ukstu_red',
+    'dss2-blue' : 'poss2ukstu_blue',
+    'dss2-ir'   : 'poss2ukstu_ir',
+    'poss1-e'   : 'poss1_red',
+}
+
 # Staging & errors roots (repo-local)
 STAGING_ROOT = Path('./data/.staging')
 ERRORS_ROOT  = Path('./data/errors')
@@ -54,9 +75,17 @@ def _stscidss_params(ra_deg: float, dec_deg: float, size_arcmin: float, survey_k
     # See: https://stdatu.stsci.edu/dss/script_usage.html (v parameter)
     # Mapping summary: https://gsss.stsci.edu/SkySurveys/Surveys.htm
     base = 'https://archive.stsci.edu/cgi-bin/dss_search'
+    try:
+        v_param = STSCI_V_PARAM[survey_key.lower()]
+    except KeyError:
+        raise ValueError(
+            f"Unknown survey key {survey_key!r} -- not in STSCI_V_PARAM. "
+            f"Known keys: {sorted(STSCI_V_PARAM)}"
+        )
     params = {
-        # Hidden but working knob: 'v=poss1_red' biases to POSS-I E plates
-        'v': 'poss1_red',
+        # v= selects the actual STScI plate series; must vary with survey_key
+        # (see STSCI_V_PARAM above -- this used to be hardcoded to poss1_red).
+        'v': v_param,
         'r': '{:.6f}'.format(ra_deg),
         'd': '{:.6f}'.format(dec_deg),
         'e': 'J2000',
