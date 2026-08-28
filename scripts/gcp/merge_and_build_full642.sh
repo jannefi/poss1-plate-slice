@@ -15,16 +15,36 @@ PYTHON_BIN="${PYTHON_BIN:-/home/janne/.micromamba/envs/vasco-py311/bin/python3.1
 ROOT_A="work/runs/full642_gcp_A"
 ROOT_B="work/runs/full642_gcp_B"
 COMBINED="work/runs/full642_gcp"
-COMBINED_TILES="$COMBINED/tiles"
 COMBINED_PLATE_MAP="$COMBINED/plate_map.csv"
 COMBINED_EPOCHS="$COMBINED/plate_epochs.csv"
+
+# COMBINED_TILES must live on the SAME filesystem as the two arms' tile
+# roots (/srv/vasco, /dev/sda3 -- see work/runs/full642_gcp_{A,B}/tiles,
+# which are symlinks onto /srv/vasco/full642_gcp_tiles/{A,B} put there
+# during the 2026-08-26 disk-full recovery), not the repo's default
+# work/runs/ location on /dev/sdb2 (root, only ~1.2TB free). The two arms
+# hold ~1.3TB each (~2.6TB combined) -- an rsync COPY either onto /dev/sdb2
+# (fails outright, ENOSPC, the exact 2026-08-25 incident again) or even
+# onto /srv/vasco itself (2.8TB free, would leave ~200GB margin, uncomfortably
+# tight) is unsafe. Fixed 2026-08-28: combined tiles live directly on
+# /srv/vasco, symlinked in the same way arm A/B already are, and populated
+# by `mv` (same-filesystem rename, zero extra disk) instead of `rsync -a`
+# (copy, ~2.6TB extra disk) -- safe because the disjointness check below
+# already guarantees no name collisions between the two arms' tile sets.
+COMBINED_TILES_REAL="/srv/vasco/full642_gcp_tiles/combined"
+COMBINED_TILES="$COMBINED/tiles"
 
 for r in "$ROOT_A" "$ROOT_B"; do
   test -f "$r/plate_map.csv" || { echo "[FATAL] $r/plate_map.csv missing -- arm not finished" >&2; exit 1; }
   test -d "$r/tiles" || { echo "[FATAL] $r/tiles missing -- arm not finished" >&2; exit 1; }
 done
 
-mkdir -p "$COMBINED_TILES"
+mkdir -p "$COMBINED" "$COMBINED_TILES_REAL"
+if [ -e "$COMBINED_TILES" ] && [ ! -L "$COMBINED_TILES" ]; then
+  echo "[FATAL] $COMBINED_TILES exists and is not a symlink -- refusing to clobber" >&2
+  exit 1
+fi
+ln -sfn "$COMBINED_TILES_REAL" "$COMBINED_TILES"
 
 echo "[merge] checking arm A / arm B tile-ID sets are disjoint..."
 TILES_A="$(mktemp)"; TILES_B="$(mktemp)"
@@ -40,10 +60,10 @@ fi
 rm -f "$TILES_A" "$TILES_B"
 echo "[merge] OK: tile-ID sets disjoint."
 
-echo "[merge] rsyncing arm A tiles into $COMBINED_TILES ..."
-rsync -a "$ROOT_A/tiles/" "$COMBINED_TILES/"
-echo "[merge] rsyncing arm B tiles into $COMBINED_TILES ..."
-rsync -a "$ROOT_B/tiles/" "$COMBINED_TILES/"
+echo "[merge] moving arm A tiles into $COMBINED_TILES_REAL (same-filesystem rename, no data copy)..."
+find "$ROOT_A/tiles/" -mindepth 1 -maxdepth 1 -exec mv -t "$COMBINED_TILES_REAL/" {} +
+echo "[merge] moving arm B tiles into $COMBINED_TILES_REAL (same-filesystem rename, no data copy)..."
+find "$ROOT_B/tiles/" -mindepth 1 -maxdepth 1 -exec mv -t "$COMBINED_TILES_REAL/" {} +
 
 echo "[merge] combining plate_map.csv ..."
 { head -1 "$ROOT_A/plate_map.csv"; tail -n +2 "$ROOT_A/plate_map.csv"; tail -n +2 "$ROOT_B/plate_map.csv"; } > "$COMBINED_PLATE_MAP"
