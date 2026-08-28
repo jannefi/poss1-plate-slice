@@ -250,6 +250,14 @@ reproducing the 2° criterion Villarroel et al. 2025 apply inside two of their
 own analyses. Measured impact, and why the release is deliberately left
 uncut: [`docs/PLATE_EDGE_MASK.md`](docs/PLATE_EDGE_MASK.md).
 
+The tiles carrying a disproportionate share of survivors (244 of 642
+plates, at a ≥20-survivors/tile threshold) have been checked against an
+independent second exposure — the POSS-I O (blue) plate, which a
+one-copy emulsion or scan defect on the red glass would not reach. On a
+random sample, 81% of checkable tiles show fewer independent-exposure
+counterparts than a random position in the same field would (p = 0.0072):
+[`docs/HOT_TILE_BLUE_PLATE_CHECK.md`](docs/HOT_TILE_BLUE_PLATE_CHECK.md).
+
 An earlier version of this section put the cost of these omissions at **~0.6% of
 survivors**, citing the predecessor pipeline. That figure was measured on a pool
 of 11,027 rows already filtered by morphology and shape stages and **does not

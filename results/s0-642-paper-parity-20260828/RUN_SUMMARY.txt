@@ -1,0 +1,23 @@
+run_dir: work/runs/full642_paper_parity_20260828
+mode: delta
+tiles_scanned: 31458
+tiles_delta_skipped: 0
+tiles_processed: 31458
+S0_rows_raw: 143268
+S0_rows_unique_src_id: 143268
+S0_src_id_duplicates_dropped: 0
+dedup_enabled: True
+dedup_method: global angular_sep <= 0.250" (no plate_id partition; XYZ spatial hash; rep: max edge_dist_arcmin from own plate WCS, fallback src_id lexicographic)
+dedup_rows: 134976 (dropped=8292)
+dedup_tiebreak_multi_member_clusters: 7976
+dedup_tiebreak_edge_decided: 7976
+dedup_tiebreak_fallback_lexicographic: 0
+dedup_tiebreak_changed_vs_lexicographic: 4096
+headers_dir: /srv/vasco/vasco60/metadata/plates/headers
+final_rows_for_stage_and_uploads: 134976 (dedup set)
+plate_map_csv: work/runs/full642_gcp/plate_map.csv
+master_csv: source_extractor_final_filtered.csv
+master_dedup_csv: source_extractor_final_filtered__dedup.csv
+stage_csv: stage_S0.csv
+upload_positional: upload_positional.csv
+upload_skybot: (disabled) not produced by this script

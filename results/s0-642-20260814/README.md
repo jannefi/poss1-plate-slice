@@ -353,6 +353,21 @@ Regenerate with `tools/build_primary_plate_flags.py` followed by
 `tools/check_primary_counterparts.py`; both run from this folder's own files
 plus the public plate manifest and the (regenerable) per-plate detection CSVs.
 
+## A second companion build, and a check on the hot-tile concentration
+
+A second candidate catalogue built from the same inputs but tracking
+Solano et al. (2022) / MNRAS 2022's literal method more closely (dropping
+USNO-B from the veto, using it for the spike mask instead) is available at
+[`../s0-642-paper-parity-20260828/`](../s0-642-paper-parity-20260828/). It
+does not supersede this release; the two are kept side by side.
+
+Separately: a small number of tiles (244 of 642 plates, at a >=20-survivors/tile threshold) carry a
+disproportionate share of this catalogue's survivors. Those tiles have now
+been checked against an independent second exposure — the POSS-I O (blue)
+plate. Direct, statistically significant evidence for a plate-emulsion or
+scan-defect origin on a majority of the tiles sampled:
+[`docs/HOT_TILE_BLUE_PLATE_CHECK.md`](../../docs/HOT_TILE_BLUE_PLATE_CHECK.md).
+
 ## What this catalogue is not
 
 A row here is a source that is **on the plate and not in the modern catalogues we
