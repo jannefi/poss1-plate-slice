@@ -72,6 +72,22 @@ alone: no catalogue, no fitting, no tuned threshold. Full write-up in
 **[`docs/DSS_WCS_TWO_SOLUTIONS.md`](docs/DSS_WCS_TWO_SOLUTIONS.md)** — useful to
 anyone slicing DSS plate scans, whatever they are looking for.
 
+### Scan-source sensitivity
+
+DSS1 plates are mirrored by more than one public archive, and we checked
+whether that choice matters by running the full pipeline — slicing, PSF
+extraction, veto, and the MNRAS filter chain — against both IRSA (used
+throughout this repository) and STScI's own `XEsurvey` archive of the same
+plates. Near a plate's centre the two are indistinguishable. Near a
+plate's physical edge, one of the two archives carries a real, structural
+pixel defect in a narrow band — **present on every rim tile checked and
+absent on every centre tile checked**, with a candidate-list impact that
+ranges from none to a 46% count difference depending on exactly where a
+tile's sources happen to sit. This project is unaffected — every result
+here uses one consistently-sourced archive — but it matters for anyone
+comparing catalogues across scan sources. See
+**[`docs/SCAN_SOURCE_SENSITIVITY.md`](docs/SCAN_SOURCE_SENSITIVITY.md)**.
+
 ## What this pipeline claims
 
 This pipeline reproduces what can be called the **Palomar transient effect**:
