@@ -103,6 +103,45 @@ digitisation/compression pipelines), not the structural defect above:
 directly confirmed by checking pixel data at both centre tiles — **0.0%
 negative pixels, no exceptions**.
 
+## Does the defect manufacture candidates that shouldn't pass?
+
+A natural follow-up: could the corrupted background inflate a source's
+measured significance enough to push it *over* the survey's SNR gate when
+it would otherwise fail? The mechanism can clearly move flux/SNR
+substantially — up to a full sign flip in the case above, a ~40% inflation
+on a second, independently-checked real star. Tracing every candidate that
+passed on STScI without an IRSA counterpart (across all 6 tiles, matched
+against IRSA's raw catalogue at a wide radius, not just the tight tolerance
+used for the headline numbers) found the mechanism doing exactly this kind
+of inflation on one more real star — but in every case checked, the
+inflated source was already above the gate on the clean side too, just by
+a smaller margin. One genuine gate-flip (fail on IRSA, pass on STScI) was
+found, but its background window was independently confirmed to be
+completely uncorrupted — ordinary cross-archive photometric noise, not
+this mechanism. **Mechanistically capable of manufacturing a false pass;
+not caught doing so in the tiles checked so far.**
+
+## A third, independent archive: same answer
+
+If the defect were a property of the plate itself — something any faithful
+digitization would reproduce — a third archive should show it too. Fetched
+the same sky position from **ESO's own DSS mirror**
+(`archive.eso.org/dss/dss/image`), a fully independent archive.
+
+![Three independent archives, same plate](figures/scan_source_sensitivity/eso_third_archive_check.png)
+
+Confirmed same plate first, then compared: **ESO shows 0.0% negative
+pixels — matching IRSA, not STScI.** Two independent archives agree with
+each other and disagree with STScI specifically, on the one plate where a
+clean three-way comparison was possible.
+
+A second attempt, on the other plate checked in this note, ran directly
+into the archive-cutout ceiling described earlier in this README: querying
+ESO's position-addressed service at that tile's exact coordinates returned
+a **different plate entirely** than the one IRSA and STScI both serve for
+that position — an unplanned, live example of exactly that problem, not a
+hypothetical one.
+
 ## Caveats
 
 - **6 tiles, 2 plates.** Both POSS-I red, both near/mid-northern
@@ -121,6 +160,12 @@ negative pixels, no exceptions**.
   identified** — only that it is present, structural, and archive-specific
   (both archives' GSSS astrometric keywords are byte-identical, so this is
   a pixel-processing difference, not a geometry difference).
+- **The candidate-manufacturing question is checked, not settled**: no
+  confirmed case of the defect flipping a genuine fail to a pass, only
+  that it moves measured SNR by enough (40-100%+) that it plausibly could.
+- **The third-archive cross-check is one plate.** The second attempt hit a
+  different-plate mismatch from ESO's own service before a same-plate
+  comparison was possible.
 
 ## Reproducing
 
