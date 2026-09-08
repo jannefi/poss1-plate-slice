@@ -89,15 +89,39 @@ IRSA's on all four plates spot-checked, and ESO's DSS mirror lands within
 full-plate files. **The divergence is specific to the full-plate
 `FitsArchive` FITS, not to STScI as an archive.**
 
-**This does not establish which solution is more accurate.** The historical
-GSSS solution is itself known to sit ~2.3″ from modern reference frames on
-many plates (see [the astrometric
-finding](../README.md#the-astrometric-finding)), so a re-solve could well be
-an improvement. What is established is that the two differ, and where the
-difference was introduced. Anyone cross-matching a catalogue built from one
-archive against one built from the other should expect ~2.4″ systematic
-disagreement on about a fifth of plates — comparable to a typical match
-radius.
+### Which solution is right: measured against Gaia
+
+Away from the border band the pixel data is identical between the archives,
+so the plate solution is the only variable. That allows a clean test: take
+one set of detections, recover each source's **plate pixel**, evaluate that
+same pixel under *both* solutions, and match each result against Gaia with
+proper motions propagated to the plate epoch. Because both arms use the same
+pixel, any error in recovering it displaces them almost equally and cannot
+favour either. A plate where the two solutions are byte-identical is carried
+as a control, where any difference in output would be a bug in the test.
+
+| plate | | matched sources | IRSA residual | STScI residual |
+|---|---|---:|---:|---:|
+| control (solutions identical) | — | 3,807 | 0.727″ | 0.727″ (exact tie) |
+| divergent plate A | | 3,322 | **0.760″** | 3.303″ |
+| divergent plate B | | 4,491 | **0.665″** | 2.776″ |
+
+**The re-solve is a degradation, not an improvement.** IRSA sits at
+0.665-0.760″ from Gaia on the divergent plates — statistically the same as
+its 0.727″ on the control, i.e. ordinary DSS plate astrometry — while the
+STScI full-plate files land 2.8-3.3″ away. Every divergent tile favours
+IRSA; every control tile ties exactly. So the ~2.4″ header difference is
+very nearly all error, and it is contributed by the STScI full-plate files.
+
+**Practical consequence.** Slicing STScI's full-plate FITS on an affected
+plate carries a ~3″ systematic across the *whole plate* — over half a
+typical 5″ match radius, and larger than the ~2.3″ GSSS-vs-`CRPIX` effect
+described in [the astrometric
+finding](../README.md#the-astrometric-finding). It is invisible to any
+internal consistency check, because the plate is self-consistent with
+itself; only an external reference frame reveals it. Both cutout services
+tested carry IRSA's solution, so this affects full-plate slicing
+specifically.
 
 What follows is about the *pixel values themselves*, and was measured on
 plates whose solutions agree exactly, so it is independent of the above.
@@ -233,10 +257,13 @@ hypothetical one.
 - **The 22% solution-divergence rate is a proportion from a 250-plate random
   sample** (≈ ±3 points of sampling error) — read it as "about a fifth of
   plates", not as 22.2% exactly.
-- **Which plate solution is more accurate is not established.** The
-  comparison above is header-level and provenance-level only. Deciding it
-  requires cross-matching real detections against a modern reference frame
-  under each solution.
+- **The Gaia comparison is three plates, nine tiles, ~11,600 matched
+  sources.** Decisive for those plates given the exact control tie, but the
+  ~2.1-2.5" degradation should not be assumed uniform across every affected
+  plate. It also assumes Gaia DR3's J2016.0 reference epoch and that the
+  catalogue's `pmra` is the cos(dec)-scaled term; an error in either would
+  inflate both arms equally, so it cannot produce the observed asymmetry,
+  but it would shift the absolute residuals.
 - **The candidate-manufacturing question is checked, not settled**: no
   confirmed case of the defect flipping a genuine fail to a pass, only
   that it moves measured SNR by enough (40-100%+) that it plausibly could.
