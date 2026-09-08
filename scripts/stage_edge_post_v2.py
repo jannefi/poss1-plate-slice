@@ -334,6 +334,7 @@ def process_chunk(
     cut: bool,
     flags_w: csv.DictWriter,
     kept_w: csv.DictWriter,
+    min_edge_arcmin: Optional[float] = None,
 ) -> ChunkStats:
     src_ids: List[str] = []
     tile_ids: List[str] = []
@@ -421,6 +422,19 @@ def process_chunk(
     in_core_own = sep_own <= core_radius
     in_core_best = sep_best <= core_radius
     decide = in_core_own if policy == "own" else in_core_best
+
+    # Distance to the plate's own array boundary is a sharper lever than
+    # radius-from-centre: 10' removes 21% of S0 and 15' removes 28.9%, both at
+    # ~zero cost in published-catalogue recall, against 65% for a comparable
+    # radial cut. See docs/PLATE_EDGE_MASK.md. Rows with an unmeasurable edge
+    # distance (NaN) are treated like unresolved rows -- kept, never silently
+    # dropped -- so a missing plate solution can never masquerade as a cut.
+    far_from_edge = np.ones(n, dtype=bool)
+    if min_edge_arcmin is not None:
+        with np.errstate(invalid="ignore"):
+            far_from_edge = ~(edge_arcmin < float(min_edge_arcmin))
+        decide = decide & far_from_edge
+
     # Unresolved rows are never silently cut: they are kept and counted.
     keep = np.ones(n, dtype=bool) if not cut else (decide | unresolved)
 
@@ -448,6 +462,8 @@ def process_chunk(
             kept_w.writerow({"src_id": src_ids[i], "ra": f"{ra_a[i]:.10f}", "dec": f"{dec_a[i]:.10f}"})
 
     yc_edge = {f"{t}": int(np.count_nonzero(edge_arcmin < t)) for t in EDGE_CURVE_ARCMIN}
+    near_edge_cut = (0 if min_edge_arcmin is None
+                     else int(np.count_nonzero(~far_from_edge)))
     yc_own = {f"{r:.3f}": int(np.count_nonzero(sep_own > r)) for r in YIELD_CURVE_RADII}
     yc_best = {f"{r:.3f}": int(np.count_nonzero(sep_best > r)) for r in YIELD_CURVE_RADII}
 
@@ -549,6 +565,12 @@ def main() -> int:
     ap.add_argument("--policy", choices=["own", "any"], default="own",
                     help="Which separation --cut acts on: the detection plate (own) or the "
                          "nearest covering plate (any). Both are always recorded.")
+    ap.add_argument("--min-edge-arcmin", type=float, default=None,
+                    help="With --cut, also drop rows closer than this to their "
+                         "plate's own array boundary. The sharper of the two "
+                         "levers (10' = 21%% of S0, 15' = 28.9%%, both at ~zero "
+                         "cost in published-catalogue recall; see "
+                         "docs/PLATE_EDGE_MASK.md). Off by default.")
     ap.add_argument("--cut", action="store_true",
                     help="Actually drop out-of-core rows. Default is flag-only (keeps everything).")
     ap.add_argument("--allow-unresolved", action="store_true",
@@ -620,7 +642,8 @@ def main() -> int:
         flags_w.writeheader()
         for ch in chunks:
             st = process_chunk(ch, src_col, ra_col, dec_col, plate_col, tile_map, src_map,
-                               plates, core_radius, args.policy, args.cut, flags_w, kept_w)
+                               plates, core_radius, args.policy, args.cut, flags_w, kept_w,
+                               min_edge_arcmin=args.min_edge_arcmin)
             per_chunk.append(st)
             print(f"[EDGE2] {ch.name}: in={st.input_rows} kept={st.kept_rows} "
                   f"in_core_own={st.in_core_own} in_core_best={st.in_core_best} "
@@ -658,6 +681,7 @@ def main() -> int:
         ),
         "policy": args.policy,
         "cut_applied": bool(args.cut),
+        "min_edge_arcmin": args.min_edge_arcmin,
         "plate_half_width_deg": PLATE_HALF_WIDTH_DEG,
         "columns_detected": {"src_id": src_col, "ra": ra_col, "dec": dec_col,
                              "plate": plate_col or "(resolved via map)"},
@@ -714,7 +738,11 @@ def main() -> int:
     }
     out_ledger.write_text(json.dumps(ledger, indent=2), encoding="utf-8")
 
-    print(f"[EDGE2] radius={core_radius:.4f} deg policy={args.policy} cut={args.cut}")
+    print(f"[EDGE2] radius={core_radius:.4f} deg policy={args.policy} cut={args.cut} "
+          f"min_edge_arcmin={args.min_edge_arcmin}")
+    if args.cut and args.min_edge_arcmin is not None:
+        print(f"[EDGE2][WARN] edge cut ACTIVE at {args.min_edge_arcmin:.1f}' -- this is a "
+              f"deliberate deviation from the papers, which describe no such cleaning.")
     print(f"[EDGE2] in={tot_in} kept={tot_kept} dropped={tot_in - tot_kept} "
           f"({(tot_in - tot_kept) / max(tot_in, 1):.2%})")
     print(f"[EDGE2] wrote: {out_kept}")
