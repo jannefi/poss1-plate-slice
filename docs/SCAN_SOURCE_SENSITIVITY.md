@@ -41,14 +41,66 @@ was changed to produce anything below.
 |---|---|---|
 | source | `irsa.ipac.caltech.edu/data/DSS/images/dss1red` | `archive.stsci.edu/missions/dss/FitsArchive/XEsurvey` |
 | addressing | plate name | plate name |
-| GSSS astrometric keywords | byte-identical between the two archives | byte-identical |
-| WCS agreement (whole-plate) | — | 0.00000″ at 5 sample points |
+| GSSS astrometric keywords | identical on ~78% of plates; **different on ~22%** — see below | |
 | provenance match to IRSA plate IDs | — | 926/932 (99.4%) |
 | pipeline / parameters | identical both sides — same `.sex` configs (byte-diffed), same veto set (Gaia+PS1), same spike catalogue (USNO-B), same WCSFIX correction, same per-plate epoch | |
 
-Astrometric identity was established first and is solid: same plates, same
-solved geometry. What follows is about the *pixel values themselves*, not
-the coordinate system.
+> **Correction (2026-09-08).** An earlier version of this page stated that
+> the two archives' GSSS astrometric keywords are byte-identical, and that
+> astrometric identity was "established and solid". **That is true only for
+> about 78% of plates.** It was verified on two plates, both of which turned
+> out to belong to the agreeing majority. A 250-plate survey since then
+> found the archives carry **different plate solutions on ~22% of plates**.
+> The pixel findings below are unaffected — they were measured on plates
+> where the two solutions agree exactly — but the astrometric claim was too
+> strong and is corrected here rather than quietly edited away.
+
+## A second, independent difference: the plate solution itself
+
+Sampled 250 plates at random from the 932 present in both archives and
+compared the two solutions at nine points spanning each array. Pixel
+geometry was controlled first, because on a small number of plates the two
+archives hold *physically different scans* under one plate name (different
+`PLATEID`, array size and pixel scale — e.g. IRSA serving a finer 23040²
+rescan where STScI serves 14000²); comparing those at matched fractional
+pixel positions measures the geometry difference, not the astrometry, and
+they are excluded.
+
+Among the 248 geometry-matched plates:
+
+| | plates | share |
+|---|---:|---:|
+| identical plate solution | 193 | 77.8% |
+| **different plate solution** | **55** | **22.2%** |
+
+For the divergent 55: median offset **2.39″**, and on **5 plates the
+disagreement exceeds 5″** somewhere on the array. The `AMDX`/`AMDY`
+polynomial coefficients differ in 55 of 55, so it is the plate solution
+proper, not a derived keyword.
+
+**Which archive changed:** STScI. Using STScI's own 1994 CD-ROM headers
+(`DSS/cdheaders/dss1/<plate>.hhh`) as an independent third reference, IRSA
+sits the same distance from the 1994 solution on divergent and agreeing
+plates alike (2.58″ vs 2.54″), while STScI roughly doubles its distance on
+exactly the divergent ones (2.53″ → 4.80″). Two cutout services agree with
+IRSA: STScI's own `dss_search` returns coefficients byte-identical to
+IRSA's on all four plates spot-checked, and ESO's DSS mirror lands within
+0.15″ of IRSA on the divergent plates while sitting 2.5″ from the STScI
+full-plate files. **The divergence is specific to the full-plate
+`FitsArchive` FITS, not to STScI as an archive.**
+
+**This does not establish which solution is more accurate.** The historical
+GSSS solution is itself known to sit ~2.3″ from modern reference frames on
+many plates (see [the astrometric
+finding](../README.md#the-astrometric-finding)), so a re-solve could well be
+an improvement. What is established is that the two differ, and where the
+difference was introduced. Anyone cross-matching a catalogue built from one
+archive against one built from the other should expect ~2.4″ systematic
+disagreement on about a fifth of plates — comparable to a typical match
+radius.
+
+What follows is about the *pixel values themselves*, and was measured on
+plates whose solutions agree exactly, so it is independent of the above.
 
 ## The mechanism: a hard-edged clip near each plate's physical boundary
 
@@ -157,9 +209,34 @@ hypothetical one.
   five more via presence/absence of the pixel signature; not yet mapped
   at sub-tile resolution on every plate edge.
 - **What causes the STScI-side pixel inversion at the edge is not
-  identified** — only that it is present, structural, and archive-specific
-  (both archives' GSSS astrometric keywords are byte-identical, so this is
-  a pixel-processing difference, not a geometry difference).
+  identified** — only that it is present, structural, and archive-specific.
+  It is a pixel-processing difference, not a geometry one: on the plates
+  where it was measured, both archives' GSSS keywords are identical, so the
+  coordinate system is not involved. (On ~22% of plates *overall* the
+  solutions do differ — see the section above — but those are a separate,
+  independent finding and not the plates used for the pixel work here.)
+- **The pixel defect is present in STScI's 2005 raw scan, not introduced by
+  the 2014 FITS packaging.** The `ScanArchive/XEsurvey/*.pim` files are raw
+  headerless 16-bit arrays, and two sampled rows (one in the border band,
+  one at plate centre) reproduce the 2014 FITS values exactly — the FITS
+  conversion is a byte-order repackaging. Two rows of one plate, so a strong
+  indication rather than a whole-array proof.
+- **A position-addressed cutout service does not appear able to reach the
+  defect.** STScI's `getimage` defaults to a `FURTHEST_FROM_EDGE` plate
+  choice — among plates covering a position it serves whichever keeps the
+  extraction furthest from any array boundary — and each plate's edge is a
+  neighbour's interior. Across 16 probes on 4 edges of 3 plates, the closest
+  any served extraction came to its own plate's array edge was 560 px,
+  against a defect band at ≤330 px. So the defect is reachable mainly by
+  slicing full-plate scans directly. Probes on 3 plates only; survey-boundary
+  plates, where a plate has no neighbour on one side, are untested.
+- **The 22% solution-divergence rate is a proportion from a 250-plate random
+  sample** (≈ ±3 points of sampling error) — read it as "about a fifth of
+  plates", not as 22.2% exactly.
+- **Which plate solution is more accurate is not established.** The
+  comparison above is header-level and provenance-level only. Deciding it
+  requires cross-matching real detections against a modern reference frame
+  under each solution.
 - **The candidate-manufacturing question is checked, not settled**: no
   confirmed case of the defect flipping a genuine fail to a pass, only
   that it moves measured SNR by enough (40-100%+) that it plausibly could.

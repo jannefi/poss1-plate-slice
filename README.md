@@ -83,9 +83,15 @@ plate's physical edge, one of the two archives carries a real, structural
 pixel defect in a narrow band — **present on every rim tile checked and
 absent on every centre tile checked**, with a candidate-list impact that
 ranges from none to a 46% count difference depending on exactly where a
-tile's sources happen to sit. This project is unaffected — every result
-here uses one consistently-sourced archive — but it matters for anyone
-comparing catalogues across scan sources. See
+tile's sources happen to sit. The same comparison turned up a **second,
+independent difference**: on about **22% of plates the two archives carry
+different GSSS plate solutions**, by a median 2.4″ and by more than 5″ on
+some — comparable to a typical match radius, and enough to change which
+sources a cross-match vetoes. Which of the two solutions is more accurate
+is an open question; where the difference was introduced is not. This
+project is unaffected — every result here uses one consistently-sourced
+archive — but both findings matter for anyone comparing catalogues across
+scan sources. See
 **[`docs/SCAN_SOURCE_SENSITIVITY.md`](docs/SCAN_SOURCE_SENSITIVITY.md)**.
 
 ## What this pipeline claims
