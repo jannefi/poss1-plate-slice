@@ -1,0 +1,198 @@
+{
+  "experimental": true,
+  "stage": "E15",
+  "run_dir": "/tmp/claude-1000/-home-janne-code-vasco60-repro-parity/039b67f2-d3c0-4754-88e2-d829d26b6db4/scratchpad/edgerun",
+  "input_glob": "stages/stage_S0.csv",
+  "core_radius_deg": 5.0,
+  "core_radius_source": "operator-specified",
+  "policy": "own",
+  "cut_applied": true,
+  "min_edge_arcmin": 15.0,
+  "plate_half_width_deg": 3.308,
+  "columns_detected": {
+    "src_id": "src_id",
+    "ra": "ra",
+    "dec": "dec",
+    "plate": "(resolved via map)"
+  },
+  "plate_sources": {
+    "headers_dir": "/srv/vasco/vasco60/metadata/plates/headers",
+    "plates_loaded": 932,
+    "plate_map_csv": "/tmp/claude-1000/-home-janne-code-vasco60-repro-parity/039b67f2-d3c0-4754-88e2-d829d26b6db4/scratchpad/pm.csv",
+    "src_plate_csv": null,
+    "centre_from_wcs": 932,
+    "centre_offset_gt_0p5_deg": [
+      {
+        "plate": "XE761",
+        "offset_deg": 4.4366,
+        "plate_ra": 341.1532,
+        "plate_dec": -14.3405,
+        "wcs_ra": 337.9147,
+        "wcs_dec": -11.2241
+      },
+      {
+        "plate": "XE758",
+        "offset_deg": 4.4362,
+        "plate_ra": 323.2348,
+        "plate_dec": -14.5398,
+        "wcs_ra": 319.9871,
+        "wcs_dec": -11.4304
+      },
+      {
+        "plate": "XE733",
+        "offset_deg": 4.4353,
+        "plate_ra": 173.1189,
+        "plate_dec": -15.9613,
+        "wcs_ra": 169.8647,
+        "wcs_dec": -12.8404
+      },
+      {
+        "plate": "XE284",
+        "offset_deg": 4.3855,
+        "plate_ra": 313.0777,
+        "plate_dec": 33.4109,
+        "wcs_ra": 309.3552,
+        "wcs_dec": 36.5634
+      },
+      {
+        "plate": "XE574",
+        "offset_deg": 4.3855,
+        "plate_ra": 304.8083,
+        "plate_dec": 3.3615,
+        "wcs_ra": 301.706,
+        "wcs_dec": 6.473
+      },
+      {
+        "plate": "XE543",
+        "offset_deg": 4.3842,
+        "plate_ra": 118.9898,
+        "plate_dec": 2.5505,
+        "wcs_ra": 115.9034,
+        "wcs_dec": 5.6726
+      },
+      {
+        "plate": "XE541",
+        "offset_deg": 4.3795,
+        "plate_ra": 106.9907,
+        "plate_dec": 2.7049,
+        "wcs_ra": 103.9008,
+        "wcs_dec": 5.8174
+      },
+      {
+        "plate": "XE304",
+        "offset_deg": 1.3273,
+        "plate_ra": 81.8305,
+        "plate_dec": 30.1309,
+        "wcs_ra": 80.2991,
+        "wcs_dec": 30.0518
+      },
+      {
+        "plate": "XE293",
+        "offset_deg": 1.1616,
+        "plate_ra": 9.6828,
+        "plate_dec": 30.798,
+        "wcs_ra": 8.333,
+        "wcs_dec": 30.7352
+      },
+      {
+        "plate": "XE880",
+        "offset_deg": 0.938,
+        "plate_ra": 359.11,
+        "plate_dec": -24.3041,
+        "wcs_ra": 359.0782,
+        "wcs_dec": -23.3666
+      }
+    ]
+  },
+  "totals": {
+    "input_rows": 134976,
+    "kept_rows": 95966,
+    "dropped_rows": 39010,
+    "in_core_own": 134976,
+    "in_core_best": 134976,
+    "plate_unresolved_rows": 0,
+    "beyond_corner_rows": 0,
+    "rows_missing_coords": 0
+  },
+  "yield_curve_dropped_by_radius": {
+    "own": {
+      "2.200": 113052,
+      "2.400": 107729,
+      "2.500": 104675,
+      "2.700": 97427,
+      "2.907": 87720,
+      "3.000": 82299,
+      "3.308": 58406
+    },
+    "best": {
+      "2.200": 110626,
+      "2.400": 103959,
+      "2.500": 99752,
+      "2.700": 88989,
+      "2.907": 71832,
+      "3.000": 62938,
+      "3.308": 37287
+    }
+  },
+  "yield_curve_within_arcmin_of_array_edge": {
+    "1": 877,
+    "2": 1642,
+    "3": 2881,
+    "5": 9188,
+    "10": 26047,
+    "15": 39010,
+    "20": 49535,
+    "30": 67089
+  },
+  "per_chunk": [
+    {
+      "chunk": "stage_S0.csv",
+      "input_rows": 134976,
+      "kept_rows": 95966,
+      "in_core_own": 134976,
+      "in_core_best": 134976,
+      "plate_unresolved": 0,
+      "beyond_corner": 0,
+      "missing_coords": 0,
+      "yield_curve_own": {
+        "2.200": 113052,
+        "2.400": 107729,
+        "2.500": 104675,
+        "2.700": 97427,
+        "2.907": 87720,
+        "3.000": 82299,
+        "3.308": 58406
+      },
+      "yield_curve_best": {
+        "2.200": 110626,
+        "2.400": 103959,
+        "2.500": 99752,
+        "2.700": 88989,
+        "2.907": 71832,
+        "3.000": 62938,
+        "3.308": 37287
+      },
+      "yield_curve_edge": {
+        "1": 877,
+        "2": 1642,
+        "3": 2881,
+        "5": 9188,
+        "10": 26047,
+        "15": 39010,
+        "20": 49535,
+        "30": 67089
+      }
+    }
+  ],
+  "outputs": {
+    "kept_csv": "/tmp/claude-1000/-home-janne-code-vasco60-repro-parity/039b67f2-d3c0-4754-88e2-d829d26b6db4/scratchpad/edgerun/stages/stage_E15_EDGE2.csv",
+    "flags_csv": "/tmp/claude-1000/-home-janne-code-vasco60-repro-parity/039b67f2-d3c0-4754-88e2-d829d26b6db4/scratchpad/edgerun/stages/stage_E15_EDGE2_flags.csv",
+    "ledger_json": "/tmp/claude-1000/-home-janne-code-vasco60-repro-parity/039b67f2-d3c0-4754-88e2-d829d26b6db4/scratchpad/edgerun/stages/stage_E15_EDGE2_ledger.json"
+  },
+  "notes": [
+    "Radial separation from PLATERA/PLATEDEC; the APS core is a circle, not the square plate boundary. cheb_own_deg is a diagnostic, not the cut.",
+    "MAPS_CORE_RADIUS_DEG=2.2 in vasco/plan/tessellate_plates.py is a tile-CENTRE constant carrying a 0.5 deg half-tile margin; per-row the equivalent is 2.7.",
+    "beyond_corner_rows are geometrically impossible for a correct plate label and indicate plate attribution defects, not edge effects.",
+    "Rows with an unresolvable plate are KEPT and counted, never silently cut."
+  ]
+}
