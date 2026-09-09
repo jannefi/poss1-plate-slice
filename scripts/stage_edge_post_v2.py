@@ -306,6 +306,34 @@ class ChunkStats:
     yield_curve_own: Dict[str, int] = field(default_factory=dict)
     yield_curve_best: Dict[str, int] = field(default_factory=dict)
     yield_curve_edge: Dict[str, int] = field(default_factory=dict)
+    # --exclude-tiles accounting (all 0/empty when unused): rows sitting on an
+    # excluded tile, and the subset the edge/core cut would otherwise have kept
+    excluded_tile_rows: int = 0
+    excluded_rows_kept_otherwise: int = 0
+    excluded_by_tile: Dict[str, int] = field(default_factory=dict)
+
+
+def load_exclude_tiles(spec: Optional[str]) -> List[str]:
+    """--exclude-tiles: comma-separated tile ids, or a path to a text/CSV file.
+
+    A file is read line by line; a header line naming a `tile_id` column is
+    honoured, otherwise the first comma-separated field of each line is taken.
+    """
+    if not spec:
+        return []
+    p = Path(spec)
+    if p.exists():
+        out: List[str] = []
+        col = 0
+        for k, line in enumerate(p.read_text(encoding="utf-8").splitlines()):
+            parts = [x.strip() for x in line.split(",")]
+            if k == 0 and "tile_id" in parts:
+                col = parts.index("tile_id")
+                continue
+            if parts and parts[col]:
+                out.append(parts[col])
+        return sorted(set(out))
+    return sorted({x.strip() for x in spec.split(",") if x.strip()})
 
 
 def chebyshev_deg(ra: np.ndarray, dec: np.ndarray, plate: dict, geom) -> np.ndarray:
@@ -335,6 +363,8 @@ def process_chunk(
     flags_w: csv.DictWriter,
     kept_w: csv.DictWriter,
     min_edge_arcmin: Optional[float] = None,
+    exclude_tiles: Optional[List[str]] = None,
+    excluded_w: Optional[csv.DictWriter] = None,
 ) -> ChunkStats:
     src_ids: List[str] = []
     tile_ids: List[str] = []
@@ -438,7 +468,27 @@ def process_chunk(
     # Unresolved rows are never silently cut: they are kept and counted.
     keep = np.ones(n, dtype=bool) if not cut else (decide | unresolved)
 
+    # Tile exclusion: rows from tiles whose WCSFIX solution is known to be
+    # broken (docs/WCSFIX_GUARD.md). The whole tile goes, not just the rows
+    # that happen to sit on a catalogued star, because the polynomial is wrong
+    # across the tile. Applied only with --cut, after the edge cut, and
+    # recorded per tile in the ledger; unresolved rows are still never cut.
+    excl_set = set(exclude_tiles or [])
+    excluded = np.zeros(n, dtype=bool)
+    kept_otherwise = np.zeros(n, dtype=bool)
+    if excl_set and cut:
+        excluded = np.fromiter((tid in excl_set for tid in tile_ids), dtype=bool, count=n)
+        kept_otherwise = excluded & keep          # rows the exclusion removes on its own
+        keep = keep & ~excluded
+    excluded_by_tile: Dict[str, int] = {}
+
     for i in range(n):
+        if excluded[i]:
+            excluded_by_tile[tile_ids[i]] = excluded_by_tile.get(tile_ids[i], 0) + 1
+            if excluded_w is not None:
+                excluded_w.writerow({"src_id": src_ids[i], "tile_id": tile_ids[i],
+                                     "det_plate": det_plates[i],
+                                     "edge_dist_arcmin": "" if np.isnan(edge_arcmin[i]) else f"{edge_arcmin[i]:.3f}"})
         flags_w.writerow(
             {
                 "src_id": src_ids[i],
@@ -479,6 +529,9 @@ def process_chunk(
         yield_curve_own=yc_own,
         yield_curve_best=yc_best,
         yield_curve_edge=yc_edge,
+        excluded_tile_rows=int(np.count_nonzero(excluded)),
+        excluded_rows_kept_otherwise=int(np.count_nonzero(kept_otherwise)),
+        excluded_by_tile=excluded_by_tile,
     )
 
 
@@ -571,6 +624,13 @@ def main() -> int:
                          "levers (10' = 21%% of S0, 15' = 28.9%%, both at ~zero "
                          "cost in published-catalogue recall; see "
                          "docs/PLATE_EDGE_MASK.md). Off by default.")
+    ap.add_argument("--exclude-tiles", default=None,
+                    help="With --cut, also drop every row from these tiles: a comma-separated "
+                         "list of tile_ids or a path to a text/CSV file (tile_id column or "
+                         "first field per line). For tiles whose WCSFIX solution is known to "
+                         "be broken (docs/WCSFIX_GUARD.md). Recorded per tile in the ledger "
+                         "and in stage_<STAGE>_EDGE2_excluded.csv. Off by default; with no "
+                         "list the outputs are unchanged.")
     ap.add_argument("--cut", action="store_true",
                     help="Actually drop out-of-core rows. Default is flag-only (keeps everything).")
     ap.add_argument("--allow-unresolved", action="store_true",
@@ -633,21 +693,42 @@ def main() -> int:
                     "edge_dist_arcmin", "beyond_corner", "plate_unresolved",
                     "source_chunk"]
 
+    exclude_tiles = load_exclude_tiles(args.exclude_tiles)
+    if exclude_tiles and not args.cut:
+        raise SystemExit("--exclude-tiles only acts together with --cut")
+    out_excluded = out_dir / f"stage_{stage}_EDGE2_excluded.csv"
+
     per_chunk: List[ChunkStats] = []
-    with out_kept.open("w", newline="", encoding="utf-8") as f_kept, \
-         out_flags.open("w", newline="", encoding="utf-8") as f_flags:
-        kept_w = csv.DictWriter(f_kept, fieldnames=["src_id", "ra", "dec"])
-        flags_w = csv.DictWriter(f_flags, fieldnames=flags_fields)
-        kept_w.writeheader()
-        flags_w.writeheader()
-        for ch in chunks:
-            st = process_chunk(ch, src_col, ra_col, dec_col, plate_col, tile_map, src_map,
-                               plates, core_radius, args.policy, args.cut, flags_w, kept_w,
-                               min_edge_arcmin=args.min_edge_arcmin)
-            per_chunk.append(st)
-            print(f"[EDGE2] {ch.name}: in={st.input_rows} kept={st.kept_rows} "
-                  f"in_core_own={st.in_core_own} in_core_best={st.in_core_best} "
-                  f"unresolved={st.plate_unresolved} beyond_corner={st.beyond_corner}", flush=True)
+    f_excl = out_excluded.open("w", newline="", encoding="utf-8") if exclude_tiles else None
+    excluded_w = None
+    if f_excl is not None:
+        excluded_w = csv.DictWriter(f_excl, fieldnames=["src_id", "tile_id", "det_plate", "edge_dist_arcmin"])
+        excluded_w.writeheader()
+    try:
+        with out_kept.open("w", newline="", encoding="utf-8") as f_kept, \
+             out_flags.open("w", newline="", encoding="utf-8") as f_flags:
+            kept_w = csv.DictWriter(f_kept, fieldnames=["src_id", "ra", "dec"])
+            flags_w = csv.DictWriter(f_flags, fieldnames=flags_fields)
+            kept_w.writeheader()
+            flags_w.writeheader()
+            for ch in chunks:
+                st = process_chunk(ch, src_col, ra_col, dec_col, plate_col, tile_map, src_map,
+                                   plates, core_radius, args.policy, args.cut, flags_w, kept_w,
+                                   min_edge_arcmin=args.min_edge_arcmin,
+                                   exclude_tiles=exclude_tiles, excluded_w=excluded_w)
+                per_chunk.append(st)
+                print(f"[EDGE2] {ch.name}: in={st.input_rows} kept={st.kept_rows} "
+                      f"in_core_own={st.in_core_own} in_core_best={st.in_core_best} "
+                      f"unresolved={st.plate_unresolved} beyond_corner={st.beyond_corner}"
+                      + (f" excluded_tile_rows={st.excluded_tile_rows}" if exclude_tiles else ""), flush=True)
+    finally:
+        if f_excl is not None:
+            f_excl.close()
+
+    excluded_by_tile: Dict[str, int] = {t: 0 for t in exclude_tiles}
+    for s in per_chunk:
+        for t, v in s.excluded_by_tile.items():
+            excluded_by_tile[t] = excluded_by_tile.get(t, 0) + v
 
     tot_in = sum(s.input_rows for s in per_chunk)
     tot_kept = sum(s.kept_rows for s in per_chunk)
@@ -682,6 +763,10 @@ def main() -> int:
         "policy": args.policy,
         "cut_applied": bool(args.cut),
         "min_edge_arcmin": args.min_edge_arcmin,
+        "exclude_tiles": exclude_tiles,
+        "excluded_rows_by_tile": excluded_by_tile,
+        "excluded_tile_rows": sum(s.excluded_tile_rows for s in per_chunk),
+        "excluded_rows_kept_otherwise": sum(s.excluded_rows_kept_otherwise for s in per_chunk),
         "plate_half_width_deg": PLATE_HALF_WIDTH_DEG,
         "columns_detected": {"src_id": src_col, "ra": ra_col, "dec": dec_col,
                              "plate": plate_col or "(resolved via map)"},
@@ -725,6 +810,7 @@ def main() -> int:
             "kept_csv": str(out_kept),
             "flags_csv": str(out_flags),
             "ledger_json": str(out_ledger),
+            **({"excluded_csv": str(out_excluded)} if exclude_tiles else {}),
         },
         "notes": [
             "Radial separation from PLATERA/PLATEDEC; the APS core is a circle, not the "
@@ -743,6 +829,9 @@ def main() -> int:
     if args.cut and args.min_edge_arcmin is not None:
         print(f"[EDGE2][WARN] edge cut ACTIVE at {args.min_edge_arcmin:.1f}' -- this is a "
               f"deliberate deviation from the papers, which describe no such cleaning.")
+    if exclude_tiles:
+        print(f"[EDGE2][WARN] tile exclusion ACTIVE: {len(exclude_tiles)} tile(s), "
+              f"{sum(s.excluded_tile_rows for s in per_chunk)} rows dropped -> {out_excluded}")
     print(f"[EDGE2] in={tot_in} kept={tot_kept} dropped={tot_in - tot_kept} "
           f"({(tot_in - tot_kept) / max(tot_in, 1):.2%})")
     print(f"[EDGE2] wrote: {out_kept}")
