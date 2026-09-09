@@ -217,6 +217,20 @@ Which one *should* you build? For an independent check of the method, the raw-WC
 variant, because it removes Gaia from the astrometry entirely. To verify our
 published numbers, the WCS-fixed variant, because that is what we published.
 
+**The refit now carries a guard (added 2026-09-09).** A refit can be excellent
+on its tie points and wrong where it has none — one XE296 corner tile fitted 312
+tie points, reported `ok`, and displaced real stars ~7″ so that they cleared the
+5″ vetoes; that tile is in both released S0 builds (see their READMEs' "Known
+defect" appendices). Step4 now falls back to a degree-1 fit when the tie points
+cannot support degree 2, runs a self-check on the corrected catalogue, and marks
+such a tile `suspect`; the S0 build (step 7) then **quarantines** it — no rows,
+listed in `quarantined_tiles.csv`. This changes S0 row counts relative to the
+released builds by exactly the rows of the tiles it flags (two tiles, ~0.25%,
+on the existing builds). To reproduce a released file byte for byte, set
+`VASCO_WCSFIX_GUARD=0` on step4 and `VASCO_WCSFIX_QUARANTINE=0` on the S0
+build; everything else is unchanged. Details and switches:
+[`WCSFIX_GUARD.md`](WCSFIX_GUARD.md).
+
 **Resumable** — a plate whose output CSV exists is skipped, so an interrupted run
 continues where it stopped.
 
