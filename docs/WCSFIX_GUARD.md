@@ -87,28 +87,125 @@ cannot see this.
   to `stage_<STAGE>_EDGE2_excluded.csv`; with no list its outputs are
   byte-identical to before.
 
-## The guard (implementation in progress)
+## The guard
 
-Three layers, because the failure is not visible in any single diagnostic:
+Three layers, because the failure is not visible in any single diagnostic
+(`vasco/wcsfix_early.py`, `vasco/cli_pipeline.py` step4,
+`scripts/build_run_stage_csvs.py`). All on by default.
 
-1. **Fit-support gates** in `ensure_wcsfix_catalog`: fewer than 500 tie
-   points → fit degree 1 instead of 2; σ > 0.4″ at degree 2 → retry at
-   degree 1; degree-1 σ > 0.6″ → `ok: false`, reason `unsupported fit`. Raw
-   plate coordinates are **not** a safe fallback here — on XE296's corner the
-   raw solution is what failed — so an unsupported fit marks the tile for
-   quarantine rather than degrading silently.
-2. **Post-fit self-check**: after applying the fit, match all corrected
-   detections to the tile's plate-epoch Gaia neighbourhood; record the
-   fraction with a counterpart at 3–8″ minus the same at a 60″ shift. An
-   excess above a calibrated threshold sets `wcsfix_suspect: true` in
-   `wcsfix_status.json` and `MNRAS_SUMMARY.json`.
-3. **Quarantine at the S0 build**: `scripts/build_run_stage_csvs.py` drops
-   rows from suspect or unsupported tiles, counts them in `tile_manifest.csv`
-   and lists them in `quarantined_tiles.csv`. On by default;
-   `VASCO_WCSFIX_QUARANTINE=0` disables it.
+### 1. Fit-support gates → degree-1 fallback
 
-With the guard off, step4 output is byte-identical to today's; with it on,
-healthy tiles are byte-identical and only flagged tiles change. Thresholds,
-validation on the XE296 and XE084 tiles plus healthy controls, and the
-resulting change in S0 counts will be recorded here when the implementation
-lands.
+Before fitting, the bootstrap tie points are binned on a 4×4 grid over the
+tile. The degree-2 fit is replaced by a degree-1 (affine) fit when any of
+these holds — an affine fit still extrapolates, but linearly, not wildly:
+
+| gate | default | XE296 tile | healthy neighbour |
+|---|---|---|---|
+| tie points | < 500 | 312 | 2,337 |
+| share of tie points in one cell | > 0.40 | 0.50 (155 of 312) | 0.08 |
+| cells with < 10 tie points | > 3 | 8 | 2 |
+| σ of the degree-2 fit | > 0.4″ → refit degree 1 | 0.48″ | 0.13″ |
+
+A hard per-cell floor is deliberately **not** a quarantine criterion: healthy
+tiles at a plate's edge have empty cells beyond the array, and one of
+XE296's healthy neighbours has cells with 4 and 14 tie points. If the
+degree-1 fit itself has σ > 0.6″ the fit is recorded as **unsupported** —
+the best available fit is still applied (raw plate coordinates are not a
+safe fallback: on XE296's corner they are what failed) and the tile is
+marked suspect.
+
+### 2. Post-fit self-check on the corrected catalogue
+
+The discriminator that works regardless of field density. Among corrected
+detections (`SNR_WIN > 10`, `FLAGS = 0`) **with no Gaia star within the 5″
+veto radius** — the ones that will survive the Gaia veto — the fraction with
+a Gaia star at 5–10″, minus the same fraction for positions shifted 60″
+north. Measured on the production fits:
+
+| tile | excess (points) |
+|---|---:|
+| `tile_RA24.686_DECp33.529` XE296, bad | **+46.8** (58.2% vs 11.4%) |
+| `tile_RA63.809_DECp57.375` XE084, bad, dense field | **+36.3** (91.8% vs 55.4%) |
+| two XE296 neighbours | −2.0, −2.9 |
+| XE429, XE556 (healthy) | −1.1, −0.1 |
+| XE074 hot tile, dense field | −3.1 |
+| XE160 (marginal survivor signal) | +6.3 |
+| XE449 (13-row survivor signal at σ 0.15″) | −18.7 |
+
+A tile is **suspect** when it has ≥ 50 such unmatched detections and the
+excess exceeds **+20 points**, or when its fit is unsupported. The
+unconditional version of this metric (all detections, no veto-radius
+condition) fails on dense fields — XE084 comes out at −24 points — because
+most detections match their true star and the shifted control has none;
+the condition on "unmatched" is what makes the check density-independent.
+
+The verdict and its inputs are written to `catalogs/wcsfix_status.json`
+(`guard` block: `degree_used`, `gate_reasons`, `coverage`, `unsupported`,
+`selfcheck`, `suspect`), to `tile_status.json` (step `wcsfix`: `ok`, `skip`
+or `suspect` with the reason) and to `MNRAS_SUMMARY.json` (`wcsfix_guard`).
+Step4 prints `[POST][WARN] … WCSFIX guard: tile SUSPECT` when it fires.
+
+### 3. Quarantine at the S0 build
+
+`scripts/build_run_stage_csvs.py` reads the verdict (either record) and,
+for a suspect tile, emits **no rows**: the tile appears in
+`tile_manifest.csv` with `rows_emitted_to_S0 = 0` and a
+`quarantined: wcsfix guard (…)` note, and in `quarantined_tiles.csv`
+(written whenever quarantine is on, so an empty file means "checked, none").
+`--no-quarantine` or `VASCO_WCSFIX_QUARANTINE=0` emits the rows anyway.
+
+### Switches
+
+| variable | default | effect |
+|---|---|---|
+| `VASCO_WCSFIX_GUARD` | `1` | `0` disables gates and self-check — step4 output is then byte-identical to the pre-guard pipeline |
+| `VASCO_WCSFIX_SELFCHECK` | `1` | `0` keeps the gates but skips the self-check |
+| `VASCO_WCSFIX_MIN_TIE_DEG2`, `VASCO_WCSFIX_MAX_SIGMA_DEG2`, `VASCO_WCSFIX_MAX_SIGMA_DEG1` | 500, 0.4, 0.6 | gate thresholds |
+| `VASCO_WCSFIX_SELFCHECK_EXCESS`, `VASCO_WCSFIX_SELFCHECK_MIN_UNMATCHED` | 0.20, 50 | self-check thresholds |
+| `VASCO_WCSFIX_QUARANTINE` | `1` | `0` emits suspect tiles' rows into S0 |
+
+Because a suspect tile contributes nothing, the guard changes S0 row counts
+for future builds by the rows of the tiles it flags — on the two existing
+builds that would have been 337 and 308 rows (0.27% / 0.23%), from two tiles.
+
+### Validation (2026-09-09)
+
+Ten production tiles were copied (without their LDACs) and step4 was re-run
+on each twice with the paper-parity levers and each plate's epoch: once with
+`VASCO_WCSFIX_GUARD=0`, once with the guard on.
+
+| tile | plate | survivors: production / guard off / guard on | degree used | gate | σ | self-check excess | suspect |
+|---|---|---|---:|---|---:|---:|---|
+| `tile_RA24.686_DECp33.529` | XE296 | 260 / **260** / 316 | 1 | 312 tie points; 0.50 in one cell; sparse cells | 0.864″ → unsupported | +64.6 | **yes** |
+| `tile_RA63.809_DECp57.375` | XE084 | 49 / **49** / 3 | 1 | degree-2 σ 0.882″ | 0.991″ → unsupported | −6.1 | **yes** |
+| `tile_RA25.808_DECp33.543` | XE296 | 9 / 9 / 9 | 2 | — | 0.130″ | −2.0 | no |
+| `tile_RA24.709_DECp32.595` | XE296 | 14 / 14 / 14 | 2 | — | 0.112″ | −2.9 | no |
+| `tile_RA148.962_DECp20.065` | XE429 | 4 / 4 / 4 | 2 | — | 0.139″ | −1.1 | no |
+| `tile_RA190.962_DECp2.413` | XE556 | 11 / 11 / 11 | 2 | — | 0.156″ | −0.0 | no |
+| `tile_RA318.791_DECp63.619` | XE074, hot | 98 / 98 / 98 | 2 | — | 0.373″ | −3.1 | no |
+| `tile_RA92.263_DECp45.019` | XE160 | 27 / 27 / 27 | 2 | — | 0.297″ | +6.3 | no |
+| `tile_RA272.483_DECp17.065` | XE449 | 13 / 13 / 13 | 2 | — | 0.147″ | −18.7 | no |
+| `tile_RA292.306_DECp57.461` | XE105, hot | 98 / 98 / 98 | 2 | — | 0.158″ | −9.4 | no |
+
+- **Guard off reproduces production byte for byte** on all ten tiles
+  (`sextractor_pass2.filtered.csv` compared with `cmp`).
+- **Guard on leaves every healthy tile byte-identical** — the eight tiles
+  where no gate fired produce the same file as guard off — and marks exactly
+  the two bad tiles suspect.
+- On XE084 the degree-1 fallback actually **repaired** the astrometry: the
+  46 displaced stars are vetoed and only 3 survivors remain, the self-check
+  drops to −6 points, yet the tile is still quarantined because its σ
+  (0.99″, a dense field) exceeds the degree-1 ceiling. That is the
+  conservative side of the design and costs three rows. On XE296 the
+  degree-1 fit does not rescue the tile (σ 0.86″, self-check +65 points), as
+  expected where the raw solution itself is poor.
+- The S0 build on the same ten tiles quarantines the two tiles, lists them
+  in `quarantined_tiles.csv`, and emits the other eight tiles' rows;
+  `--no-quarantine` emits all ten.
+
+Survey-wide, the fit-support gates alone would have changed the degree on
+about 4.5% of tiles (σ > 0.4″: 1,426; < 500 tie points: 2); most of those
+carry few survivors and, healthy or not, would then pass or fail the
+self-check on their own merits. The expected effect on a rebuilt S0 is the
+removal of the two known tiles' rows plus whatever the self-check flags on
+tiles the sweep could only test through their survivors.

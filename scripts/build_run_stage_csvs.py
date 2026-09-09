@@ -145,6 +145,33 @@ def _is_post1_done(tile_dir: Path) -> bool:
     return _read_tile_steps(tile_dir).get("post1", {}).get("status") == "ok"
 
 
+def _wcsfix_suspect(tile_dir: Path) -> Tuple[bool, str]:
+    """Did step4's WCSFIX guard mark this tile suspect? (docs/WCSFIX_GUARD.md)
+
+    Reads tile_status.json's `wcsfix` step first, then the guard block of
+    catalogs/wcsfix_status.json, so a tile is caught whichever of the two the
+    run wrote. Tiles processed before the guard existed have neither and are
+    treated as not suspect.
+    """
+    try:
+        st = _read_tile_steps(tile_dir).get("wcsfix", {})
+        if str(st.get("status", "")).lower() == "suspect":
+            return True, str(st.get("reason") or "tile_status")
+    except Exception:
+        pass
+    try:
+        p = tile_dir / "catalogs" / "wcsfix_status.json"
+        if p.exists():
+            g = json.loads(p.read_text(encoding="utf-8")).get("guard") or {}
+            if g.get("suspect"):
+                why = g.get("unsupported_reason") or (
+                    f"selfcheck excess {g.get('selfcheck', {}).get('excess')}" if g.get("selfcheck") else "guard")
+                return True, str(why)
+    except Exception:
+        pass
+    return False, ""
+
+
 def _set_post1_status(tile_dir: Path, status: str, reason: str = "") -> None:
     """Merge post1 status into tile_status.json (atomic write).
 
@@ -434,6 +461,11 @@ def main():
     ap.add_argument("--full", action="store_true",
                     help="Reprocess all tiles regardless of post1 status in tile_status.json. "
                          "Default (delta mode): skip tiles already marked post1.status=ok.")
+    ap.add_argument("--no-quarantine", action="store_true",
+                    help="Emit rows from tiles the WCSFIX guard marked suspect. Default is to "
+                         "quarantine them: their rows are left out of S0, counted in "
+                         "tile_manifest.csv and listed in quarantined_tiles.csv "
+                         "(docs/WCSFIX_GUARD.md). VASCO_WCSFIX_QUARANTINE=0 does the same.")
 
     # Dedup controls
     ap.add_argument("--dedup-tol-arcsec", type=float, default=3.0,
@@ -495,10 +527,36 @@ def main():
     manifest_rows: List[dict] = []
     out_rows: List[dict] = []
     delta_skipped = 0
+    import os as _os
+    quarantine = (not args.no_quarantine
+                  and _os.getenv("VASCO_WCSFIX_QUARANTINE", "1").strip().lower() not in ("0", "false", "no"))
+    quarantined: List[dict] = []
 
     for td in uniq_tiles:
         tile_id = td.name
         plate_id = plate_map.get(tile_id, "")
+
+        # WCSFIX guard quarantine: a tile whose astrometric refit is marked
+        # suspect contributes no rows. Its rows are counted so the manifest
+        # shows what was left out; it is marked post1 ok so delta mode does
+        # not keep re-reading it.
+        if quarantine:
+            q_suspect, q_reason = _wcsfix_suspect(td)
+            if q_suspect:
+                cat_q = td / args.catalog_name
+                n_q = 0
+                if cat_q.exists() and cat_q.stat().st_size > 0:
+                    with cat_q.open("r", encoding="utf-8", errors="ignore", newline="") as f:
+                        n_q = sum(1 for _ in csv.DictReader(f))
+                manifest_rows.append({
+                    "tile_id": tile_id, "tile_path": str(td), "plate_id": plate_id,
+                    "rows_in_tile_filtered_csv": n_q, "rows_emitted_to_S0": 0, "skipped_delta": 0,
+                    "notes": f"quarantined: wcsfix guard ({q_reason})",
+                })
+                quarantined.append({"tile_id": tile_id, "tile_path": str(td), "plate_id": plate_id,
+                                    "rows_in_tile_filtered_csv": n_q, "reason": q_reason})
+                _set_post1_status(td, "ok", "quarantined_wcsfix")
+                continue
 
         # Delta check
         if not args.full and _is_post1_done(td):
@@ -593,6 +651,16 @@ def main():
         w = csv.DictWriter(f, fieldnames=mf_fields)
         w.writeheader()
         w.writerows(manifest_rows)
+
+    # quarantined tiles (always written when quarantine is on, even if empty,
+    # so a reader can tell "none" from "not checked")
+    if quarantine:
+        q_path = run_dir / "quarantined_tiles.csv"
+        with q_path.open("w", encoding="utf-8", newline="") as f:
+            w = csv.DictWriter(f, fieldnames=["tile_id", "tile_path", "plate_id",
+                                              "rows_in_tile_filtered_csv", "reason"])
+            w.writeheader()
+            w.writerows(quarantined)
 
     # dedup src_id within base set
     seen: Set[str] = set()

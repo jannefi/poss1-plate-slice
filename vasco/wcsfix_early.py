@@ -32,6 +32,35 @@ class WcsFixConfig:
     # Status JSON name
     status_name: str = "wcsfix_status.json"
 
+    # --- guard (docs/WCSFIX_GUARD.md) -------------------------------------
+    # A degree-2 fit is well constrained where its tie points are and can be
+    # badly wrong where they are not; the XE296 corner tile fitted 312 tie
+    # points, 155 of them in one 4x4 cell, reported ok, and displaced real
+    # stars ~7" so that they cleared the 5" vetoes. Three layers:
+    #  1. fit-support gates -> degree-1 fallback / "unsupported"
+    #  2. a post-fit self-check on the corrected catalogue
+    #  3. `suspect` in the status, which the S0 build quarantines
+    guard_enabled: bool = True
+    min_tie_points_deg2: int = 500          # fewer tie points -> fit degree 1
+    max_sigma_deg2_arcsec: float = 0.4      # worse at degree 2 -> refit degree 1
+    max_sigma_deg1_arcsec: float = 0.6      # worse at degree 1 -> unsupported
+    concentration_grid: int = 4             # tie-point coverage grid over the tile
+    concentration_max_frac: float = 0.40    # > this share in one cell -> degree 1
+    sparse_cell_min: int = 10               # a cell with fewer tie points is sparse
+    sparse_cells_max: int = 3               # more sparse cells than this -> degree 1
+    # self-check: among corrected detections with NO Gaia within the veto
+    # radius, the fraction with a Gaia star at [lo, hi) minus the same on
+    # positions shifted north by `shift` (chance). Displaced stars show as an
+    # excess; healthy tiles sit at ~0 regardless of field density.
+    selfcheck_enabled: bool = True
+    selfcheck_veto_arcsec: float = 5.0
+    selfcheck_lo_arcsec: float = 5.0
+    selfcheck_hi_arcsec: float = 10.0
+    selfcheck_shift_arcsec: float = 60.0
+    selfcheck_min_snr: float = 10.0
+    selfcheck_min_unmatched: int = 50
+    selfcheck_excess_thr: float = 0.20
+
 
 def _wrap_deg_pm180(x: np.ndarray) -> np.ndarray:
     """Wrap degrees to [-180, +180)."""
@@ -125,6 +154,126 @@ def _poly_features(dra_deg: np.ndarray, ddec_deg: np.ndarray, degree: int) -> np
         return np.column_stack([np.ones_like(x), x, y])
     # degree 2
     return np.column_stack([np.ones_like(x), x, y, x * x, x * y, y * y])
+
+
+def _tie_point_coverage(rows: List[dict], cfg: WcsFixConfig) -> dict:
+    """How the tie points spread over the tile, from the bootstrap rows' pixel
+    coordinates: the share held by the fullest cell of a grid, and how many
+    cells are sparse. Falls back to an empty result if no pixel columns."""
+    xs, ys = [], []
+    for row in rows:
+        try:
+            xs.append(float(row.get("X_IMAGE", row.get("XWIN_IMAGE"))))
+            ys.append(float(row.get("Y_IMAGE", row.get("YWIN_IMAGE"))))
+        except (TypeError, ValueError):
+            continue
+    if len(xs) < 4:
+        return {"grid": cfg.concentration_grid, "max_cell_frac": None, "sparse_cells": None}
+    x = np.asarray(xs)
+    y = np.asarray(ys)
+    g = int(cfg.concentration_grid)
+    # the tile's own extent; 2118 px is the standard 60' cutout, never smaller
+    hi = max(2118.0, float(x.max()), float(y.max()))
+    ix = np.clip(((x - 1.0) / hi * g).astype(int), 0, g - 1)
+    iy = np.clip(((y - 1.0) / hi * g).astype(int), 0, g - 1)
+    counts = np.zeros((g, g), dtype=int)
+    np.add.at(counts, (iy, ix), 1)
+    return {
+        "grid": g,
+        "max_cell_frac": float(counts.max() / max(len(x), 1)),
+        "sparse_cells": int(np.count_nonzero(counts < cfg.sparse_cell_min)),
+        "cell_counts": counts.tolist(),
+    }
+
+
+def _unit_xyz(ra_deg: np.ndarray, dec_deg: np.ndarray) -> np.ndarray:
+    ra = np.radians(ra_deg)
+    dec = np.radians(dec_deg)
+    return np.column_stack([np.cos(dec) * np.cos(ra), np.cos(dec) * np.sin(ra), np.sin(dec)])
+
+
+def _self_check(out_csv: Path, gaia_csv: Path, ra_col_out: str, dec_col_out: str,
+                cfg: WcsFixConfig) -> dict:
+    """Post-fit self-check on the corrected catalogue (docs/WCSFIX_GUARD.md).
+
+    Among detections with no Gaia counterpart inside the veto radius -- the
+    ones that will survive the Gaia veto -- measure the fraction with a Gaia
+    star at [lo, hi). Do the same on positions shifted north by `shift` for
+    the chance level. A displaced-star tile shows a large positive excess
+    (XE296's corner tile: +47 points; XE084's: +36 in a dense field); healthy
+    tiles sit within a few points of zero.
+    """
+    try:
+        from scipy.spatial import cKDTree
+    except Exception as e:  # pragma: no cover - environment without scipy
+        return {"enabled": False, "reason": f"scipy unavailable: {e}"}
+
+    ra, de = [], []
+    with out_csv.open(newline="", encoding="utf-8", errors="ignore") as f:
+        r = csv.DictReader(f)
+        fields = set(r.fieldnames or [])
+        has_snr, has_flags = "SNR_WIN" in fields, "FLAGS" in fields
+        for row in r:
+            try:
+                a = float(row[ra_col_out])
+                d = float(row[dec_col_out])
+            except (TypeError, ValueError, KeyError):
+                continue
+            if has_snr:
+                try:
+                    if not float(row["SNR_WIN"]) > cfg.selfcheck_min_snr:
+                        continue
+                except (TypeError, ValueError):
+                    continue
+            if has_flags:
+                try:
+                    if int(float(row["FLAGS"])) != 0:
+                        continue
+                except (TypeError, ValueError):
+                    pass
+            ra.append(a)
+            de.append(d)
+    gra, gde = [], []
+    with gaia_csv.open(newline="", encoding="utf-8", errors="ignore") as f:
+        for row in csv.DictReader(f):
+            try:
+                gra.append(float(row["ra"]))
+                gde.append(float(row["dec"]))
+            except (TypeError, ValueError, KeyError):
+                continue
+    n = len(ra)
+    if n == 0 or len(gra) == 0:
+        return {"enabled": True, "n_detections": n, "n_gaia": len(gra), "suspect": False,
+                "reason": "nothing to check"}
+
+    tree = cKDTree(_unit_xyz(np.asarray(gra), np.asarray(gde)))
+    ra_a, de_a = np.asarray(ra), np.asarray(de)
+    ub = 2.0 * np.sin(np.radians(cfg.selfcheck_hi_arcsec / 3600.0) / 2.0)
+
+    def nearest_arcsec(dec_arr):
+        d, _ = tree.query(_unit_xyz(ra_a, dec_arr), k=1, distance_upper_bound=ub)
+        sep = np.full(n, np.inf)
+        ok = np.isfinite(d)
+        sep[ok] = 2.0 * np.degrees(np.arcsin(np.minimum(d[ok] / 2.0, 1.0))) * 3600.0
+        return sep
+
+    out = {"enabled": True, "n_detections": n, "n_gaia": len(gra),
+           "veto_arcsec": cfg.selfcheck_veto_arcsec,
+           "window_arcsec": [cfg.selfcheck_lo_arcsec, cfg.selfcheck_hi_arcsec]}
+    for lab, dec_arr in (("", de_a), ("_chance", de_a + cfg.selfcheck_shift_arcsec / 3600.0)):
+        sep = nearest_arcsec(dec_arr)
+        unmatched = ~(sep < cfg.selfcheck_veto_arcsec)
+        k = int(unmatched.sum())
+        in_win = (sep[unmatched] >= cfg.selfcheck_lo_arcsec) & (sep[unmatched] < cfg.selfcheck_hi_arcsec)
+        out[f"n_unmatched{lab}"] = k
+        out[f"frac_window{lab}"] = float(in_win.mean()) if k else None
+    if out["frac_window"] is None or out["frac_window_chance"] is None:
+        out.update({"excess": None, "suspect": False, "reason": "too few unmatched detections"})
+        return out
+    out["excess"] = float(out["frac_window"] - out["frac_window_chance"])
+    out["suspect"] = bool(out["n_unmatched"] >= cfg.selfcheck_min_unmatched
+                          and out["excess"] > cfg.selfcheck_excess_thr)
+    return out
 
 
 def _robust_fit_offsets(dra_det: np.ndarray,
@@ -365,24 +514,63 @@ def ensure_wcsfix_catalog(tile_dir: Path,
     dra_off = _wrap_deg_pm180(g_ra - det_ra)
     ddec_off = (g_de - det_de)
 
-    # Robust fit
+    # --- guard, layer 1: is a degree-2 fit supported by these tie points? ---
+    guard: dict = {"enabled": bool(cfg.guard_enabled), "degree_requested": int(cfg.degree),
+                   "gate_reasons": [], "unsupported": False, "suspect": False}
+    degree_used = int(cfg.degree)
+    coverage = _tie_point_coverage(rows, cfg)
+    guard["coverage"] = coverage
+    if cfg.guard_enabled and degree_used > 1:
+        if n < cfg.min_tie_points_deg2:
+            guard["gate_reasons"].append(f"tie points {n} < {cfg.min_tie_points_deg2}")
+        if coverage.get("max_cell_frac") is not None and coverage["max_cell_frac"] > cfg.concentration_max_frac:
+            guard["gate_reasons"].append(
+                f"{coverage['max_cell_frac']:.2f} of tie points in one {coverage['grid']}x{coverage['grid']} cell")
+        if coverage.get("sparse_cells") is not None and coverage["sparse_cells"] > cfg.sparse_cells_max:
+            guard["gate_reasons"].append(
+                f"{coverage['sparse_cells']} cells with < {cfg.sparse_cell_min} tie points")
+        if guard["gate_reasons"]:
+            degree_used = 1
+
+    # Robust fit (degree-1 fallback if the degree-2 fit is unsupported or too loose)
     try:
         coef_ra, coef_de, fit_info = _robust_fit_offsets(
             dra_det, ddec_det, dra_off, ddec_off,
-            degree=cfg.degree, cfg=cfg
+            degree=degree_used, cfg=cfg
         )
+        if (cfg.guard_enabled and degree_used > 1
+                and fit_info.get("sigma_arcsec") is not None
+                and fit_info["sigma_arcsec"] > cfg.max_sigma_deg2_arcsec):
+            guard["gate_reasons"].append(
+                f"degree-2 sigma {fit_info['sigma_arcsec']:.3f}\" > {cfg.max_sigma_deg2_arcsec}\"")
+            degree_used = 1
+            coef_ra, coef_de, fit_info = _robust_fit_offsets(
+                dra_det, ddec_det, dra_off, ddec_off,
+                degree=degree_used, cfg=cfg
+            )
     except Exception as e:
-        status.update({"ok": False, "reason": f"fit failed: {e}"})
+        status.update({"ok": False, "reason": f"fit failed: {e}", "guard": guard})
         try:
             status_path.write_text(json.dumps(status, indent=2), encoding="utf-8")
         except Exception:
             pass
         return sex_csv, status
 
+    guard["degree_used"] = degree_used
+    if (cfg.guard_enabled and fit_info.get("sigma_arcsec") is not None
+            and fit_info["sigma_arcsec"] > cfg.max_sigma_deg1_arcsec):
+        # Raw plate coordinates are not a safe fallback (on XE296's corner they
+        # are what failed), so the best available fit is still applied and the
+        # tile is marked for quarantine instead.
+        guard["unsupported"] = True
+        guard["unsupported_reason"] = (
+            f"degree-{degree_used} sigma {fit_info['sigma_arcsec']:.3f}\" > {cfg.max_sigma_deg1_arcsec}\"")
+
     status.update({
         "fit": fit_info,
         "coef_ra": [float(x) for x in coef_ra.tolist()],
         "coef_de": [float(x) for x in coef_de.tolist()],
+        "guard": guard,
     })
 
     # Apply to full SExtractor catalog and write output
@@ -418,7 +606,7 @@ def ensure_wcsfix_catalog(tile_dir: Path,
                 dra = _wrap_deg_pm180(np.array([ra_det_row - ra0], dtype=float))[0]
                 dde = (dec_det_row - dec0)
 
-                X = _poly_features(np.array([dra], dtype=float), np.array([dde], dtype=float), degree=cfg.degree)
+                X = _poly_features(np.array([dra], dtype=float), np.array([dde], dtype=float), degree=degree_used)
                 off_ra = (X @ coef_ra).item()
                 off_de = (X @ coef_de).item()
 
@@ -431,6 +619,17 @@ def ensure_wcsfix_catalog(tile_dir: Path,
                 w.writerow(row)
 
         tmp.replace(out_csv)
+
+        # --- guard, layer 2: does the corrected catalogue look displaced? ---
+        if cfg.guard_enabled and cfg.selfcheck_enabled:
+            try:
+                guard["selfcheck"] = _self_check(out_csv, gaia_csv, "RA_corr", "Dec_corr", cfg)
+            except Exception as e:  # never let the check itself break the step
+                guard["selfcheck"] = {"enabled": True, "error": f"{type(e).__name__}: {e}", "suspect": False}
+            guard["suspect"] = bool(guard["unsupported"] or guard["selfcheck"].get("suspect"))
+        else:
+            guard["suspect"] = bool(guard["unsupported"])
+        status["guard"] = guard
 
         status.update({"ok": True, "reason": "wrote", "out_rows": "unknown"})
         try:

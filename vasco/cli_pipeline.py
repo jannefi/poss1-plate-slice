@@ -727,10 +727,11 @@ def _write_json(path: Path, obj) -> None:
 
 import datetime as _datetime
 
-def _update_tile_status(run_dir: Path, step: str, status: str) -> None:
+def _update_tile_status(run_dir: Path, step: str, status: str, reason: str | None = None) -> None:
     """Merge-update tile_status.json with the result of one pipeline step.
 
-    Status values: "ok", "skip", "fail".
+    Status values: "ok", "skip", "fail" -- and, for the `wcsfix` step,
+    "suspect" (docs/WCSFIX_GUARD.md), which the S0 build quarantines.
     Reads existing file (if any), updates only the given step key, then
     re-writes.  Failures are caught and printed as warnings so they never
     abort a pipeline step.
@@ -741,10 +742,13 @@ def _update_tile_status(run_dir: Path, step: str, status: str) -> None:
             data = json.loads(path.read_text(encoding='utf-8'))
         else:
             data = {'tile_id': run_dir.name, 'steps': {}}
-        data['steps'][step] = {
+        entry = {
             'status': status,
             'ts': _datetime.datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ'),
         }
+        if reason:
+            entry['reason'] = str(reason)
+        data['steps'][step] = entry
         _write_json(path, data)
     except Exception as e:
         print(f'[WARN] tile_status update failed for {step}:', e)
@@ -1288,6 +1292,31 @@ def _post_xmatch_tile(tile_dir, pass2_ldac, *, radius_arcsec: float = 5.0) -> No
 
     # 3) Early canonical coordinates (WCSFIX) using local Gaia cache
     sex_for_veto = sex_csv
+    # WCSFIX guard result for this tile (docs/WCSFIX_GUARD.md). Filled from the
+    # fit status below; recorded in tile_status.json and MNRAS_SUMMARY.json so
+    # the S0 build can quarantine a suspect tile.
+    wcsfix_guard: dict = {'enabled': False, 'suspect': False, 'reason': 'wcsfix not run'}
+
+    def _guard_kwargs() -> dict:
+        """Guard settings from the environment; defaults are the dataclass's."""
+        def _flag(name: str, default: str = '1') -> bool:
+            return os.getenv(name, default).strip().lower() not in ('0', 'false', 'no')
+        kw = {
+            'guard_enabled': _flag('VASCO_WCSFIX_GUARD'),
+            'selfcheck_enabled': _flag('VASCO_WCSFIX_SELFCHECK'),
+        }
+        for env, key, cast in (
+            ('VASCO_WCSFIX_MIN_TIE_DEG2', 'min_tie_points_deg2', int),
+            ('VASCO_WCSFIX_MAX_SIGMA_DEG2', 'max_sigma_deg2_arcsec', float),
+            ('VASCO_WCSFIX_MAX_SIGMA_DEG1', 'max_sigma_deg1_arcsec', float),
+            ('VASCO_WCSFIX_SELFCHECK_EXCESS', 'selfcheck_excess_thr', float),
+            ('VASCO_WCSFIX_SELFCHECK_MIN_UNMATCHED', 'selfcheck_min_unmatched', int),
+        ):
+            v = os.getenv(env)
+            if v not in (None, ''):
+                kw[key] = cast(v)
+        return kw
+
     if os.getenv('VASCO_WCSFIX_DISABLE'):
         # repro/mnras-parity deviation #6: use raw plate FITS WCS as-is.
         # sex_for_veto already defaults to sex_csv (raw coords); this is the
@@ -1301,10 +1330,12 @@ def _post_xmatch_tile(tile_dir, pass2_ldac, *, radius_arcsec: float = 5.0) -> No
             center = _tile_center_from_index_or_name(tile_dir)
 
             # Primary config (existing behavior; env-controlled)
+            guard_kw = _guard_kwargs()
             cfg = WcsFixConfig(
                 bootstrap_radius_arcsec=float(os.getenv('VASCO_WCSFIX_BOOTSTRAP_ARCSEC', '5.0')),
                 degree=int(os.getenv('VASCO_WCSFIX_DEGREE', '2')),
                 min_matches=int(os.getenv('VASCO_WCSFIX_MIN_MATCHES', '20')),
+                **guard_kw,
             )
 
             # Optional fallback config (second-chance) for the specific failure mode:
@@ -1314,6 +1345,7 @@ def _post_xmatch_tile(tile_dir, pass2_ldac, *, radius_arcsec: float = 5.0) -> No
                 bootstrap_radius_arcsec=float(os.getenv('VASCO_WCSFIX_FALLBACK_BOOTSTRAP_ARCSEC', '15.0')),
                 degree=int(os.getenv('VASCO_WCSFIX_FALLBACK_DEGREE', '1')),
                 min_matches=int(os.getenv('VASCO_WCSFIX_FALLBACK_MIN_MATCHES', '10')),
+                **guard_kw,
             )
 
             if gaia_csv.exists() and gaia_csv.stat().st_size > 0:
@@ -1329,6 +1361,7 @@ def _post_xmatch_tile(tile_dir, pass2_ldac, *, radius_arcsec: float = 5.0) -> No
                 if status.get('ok'):
                     sex_for_veto = out_wcs
                     print('[POST]', tile_dir.name, 'WCSFIX OK ->', out_wcs.name)
+                    wcsfix_guard = dict(status.get('guard') or {'enabled': False, 'suspect': False})
                 else:
                     reason = status.get('reason') or ''
                     reason_norm = _html.unescape(str(reason)).lower()
@@ -1353,6 +1386,7 @@ def _post_xmatch_tile(tile_dir, pass2_ldac, *, radius_arcsec: float = 5.0) -> No
                         if status2.get('ok'):
                             sex_for_veto = out_wcs2
                             print('[POST]', tile_dir.name, 'WCSFIX OK (fallback) ->', out_wcs2.name)
+                            wcsfix_guard = dict(status2.get('guard') or {'enabled': False, 'suspect': False})
                         else:
                             print('[POST][INFO]', tile_dir.name,
                                 'WCSFIX fallback failed -> using raw coords:', status2.get('reason'))
@@ -1360,6 +1394,18 @@ def _post_xmatch_tile(tile_dir, pass2_ldac, *, radius_arcsec: float = 5.0) -> No
                 print('[POST][INFO]', tile_dir.name, 'WCSFIX skipped: gaia_neighbourhood.csv missing/empty')
         except Exception as e:
             print('[POST][WARN]', tile_dir.name, 'WCSFIX error -> using raw coords:', e)
+
+    # Record the guard verdict where the S0 build looks for it. A tile that
+    # never got a fit (raw coords) is not "suspect" in this sense -- that path
+    # is the pre-existing, audited fallback -- but the record says so.
+    if wcsfix_guard.get('suspect'):
+        why = wcsfix_guard.get('unsupported_reason') or (
+            f"selfcheck excess {wcsfix_guard.get('selfcheck', {}).get('excess')}")
+        print('[POST][WARN]', tile_dir.name, 'WCSFIX guard: tile SUSPECT ->', why,
+              '(rows will be quarantined at the S0 build; docs/WCSFIX_GUARD.md)')
+        _update_tile_status(tile_dir, 'wcsfix', 'suspect', reason=why)
+    else:
+        _update_tile_status(tile_dir, 'wcsfix', 'ok' if wcsfix_guard.get('enabled') else 'skip')
 
     # Candidate RA/Dec columns (prefer RA_corr/Dec_corr when present)
     cand_cols = _detect_radec_columns(sex_for_veto) or ('ALPHA_J2000', 'DELTA_J2000')
@@ -1478,6 +1524,7 @@ def _post_xmatch_tile(tile_dir, pass2_ldac, *, radius_arcsec: float = 5.0) -> No
             (catdir / 'sextractor_pass2.filtered.csv').write_text('', encoding='utf-8')
             write_summary(tile_dir, finalize(buckets), md_path='MNRAS_SUMMARY.md', json_path='MNRAS_SUMMARY.json')
             _augment_summary_json(tile_dir, {
+                'wcsfix_guard': wcsfix_guard,
                 'veto_start_rows': veto_start_rows,
                 'veto_after_gaia_rows': veto_after_gaia_rows,
                 'veto_after_ps1_rows': veto_after_ps1_rows,
@@ -1496,6 +1543,7 @@ def _post_xmatch_tile(tile_dir, pass2_ldac, *, radius_arcsec: float = 5.0) -> No
     except Exception:
         write_summary(tile_dir, finalize(buckets), md_path='MNRAS_SUMMARY.md', json_path='MNRAS_SUMMARY.json')
         _augment_summary_json(tile_dir, {
+            'wcsfix_guard': wcsfix_guard,
             'veto_start_rows': veto_start_rows,
             'veto_after_gaia_rows': veto_after_gaia_rows,
             'veto_after_ps1_rows': veto_after_ps1_rows,
@@ -1530,6 +1578,7 @@ def _post_xmatch_tile(tile_dir, pass2_ldac, *, radius_arcsec: float = 5.0) -> No
 
     # Augment summary with veto stage counts + hard-gate rejection counts + env flags
     extra = {
+        'wcsfix_guard': wcsfix_guard,
         'ps1_veto_enabled': not bool(os.getenv('VASCO_DISABLE_PS1')),
         'usnob_veto_enabled': not bool(os.getenv('VASCO_DISABLE_USNOB')),
         'veto_start_rows': veto_start_rows,
