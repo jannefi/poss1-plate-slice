@@ -12,11 +12,14 @@ one to cite unless you specifically want the paper-parity variant.
 Produced entirely from public inputs, same as the primary release — see
 [`tools/audit_independence.py`](../../tools/audit_independence.py).
 
-**Hot-tile survivors, in both this build and the primary release, have now
-been checked against an independent second exposure** (the POSS-I O/blue
-plate) — direct, statistically significant evidence for a plate-emulsion or
-scan-defect origin on a majority of the tiles sampled, not just the last
-hypothesis left standing by elimination:
+**Hot-tile survivors, in both this build and the primary release, have been
+checked against an independent second exposure** (the POSS-I O/blue plate):
+they show fewer blue counterparts than random positions (p = 0.0072).
+Revisited 2026-09-09: so does every other class of survivor, including rows
+in the published 5,399-row list, so the blue plate does not single out hot
+tiles and cannot separate a red-emulsion defect from an event shorter than
+the gap between the two exposures; the direct evidence for defects on some
+hot tiles is visual (moiré, printed text, seams):
 [`docs/HOT_TILE_BLUE_PLATE_CHECK.md`](../../docs/HOT_TILE_BLUE_PLATE_CHECK.md).
 
 ## Files
