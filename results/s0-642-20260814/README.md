@@ -416,10 +416,16 @@ USNO-B from the veto, using it for the spike mask instead) is available at
 does not supersede this release; the two are kept side by side.
 
 Separately: a small number of tiles (244 of 642 plates, at a >=20-survivors/tile threshold) carry a
-disproportionate share of this catalogue's survivors. Those tiles have now
-been checked against an independent second exposure — the POSS-I O (blue)
-plate. Direct, statistically significant evidence for a plate-emulsion or
-scan-defect origin on a majority of the tiles sampled:
+disproportionate share of this catalogue's survivors. Those tiles have been
+checked against an independent second exposure — the POSS-I O (blue) plate —
+and their survivors show fewer blue counterparts than random positions
+(p = 0.0072). **Revisited 2026-09-09**: the same is true of every other class
+of survivor, including rows in the published 5,399-row list, so the blue
+result does not single out hot tiles, and it cannot separate a red-emulsion
+defect from an event shorter than the gap between the two exposures. The
+direct evidence that some hot tiles are defects is visual (moiré, printed
+text, scan seams); one "exception" tile is the broken refit described in the
+Known-defect appendix below:
 [`docs/HOT_TILE_BLUE_PLATE_CHECK.md`](../../docs/HOT_TILE_BLUE_PLATE_CHECK.md).
 
 ## What this catalogue is not

@@ -274,10 +274,14 @@ uncut: [`docs/PLATE_EDGE_MASK.md`](docs/PLATE_EDGE_MASK.md).
 
 The tiles carrying a disproportionate share of survivors (244 of 642
 plates, at a ≥20-survivors/tile threshold) have been checked against an
-independent second exposure — the POSS-I O (blue) plate, which a
-one-copy emulsion or scan defect on the red glass would not reach. On a
-random sample, 81% of checkable tiles show fewer independent-exposure
-counterparts than a random position in the same field would (p = 0.0072):
+independent second exposure — the POSS-I O (blue) plate, exposed the same
+night. On a random sample, 81% of checkable tiles show fewer blue
+counterparts than a random position in the same field would (p = 0.0072) —
+but so does every other class of survivor, including rows in the published
+5,399-row list, so the blue plate does not single out hot tiles and cannot
+separate a red-emulsion defect from an event shorter than the gap between
+the two exposures. The direct evidence for defects on some hot tiles is
+visual (moiré, printed text, scan seams):
 [`docs/HOT_TILE_BLUE_PLATE_CHECK.md`](docs/HOT_TILE_BLUE_PLATE_CHECK.md).
 
 An earlier version of this section put the cost of these omissions at **~0.6% of
