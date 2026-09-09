@@ -230,6 +230,23 @@ geometric cut is a cross-check on it rather than an additional filter.
   looks like ordinary sky, and at 1′ zoom most markers sit on a compact round
   source. Dust specks and grain clumps also look stellar at 1.7″/px, so visual
   inspection cannot settle this either way.
+- **The recall and SuperCOSMOS figures above share one blind spot for
+  single-plate events at the rim.** A position-addressed cutout service hands
+  sky near one plate's edge to the neighbouring plate (`getimage`'s
+  `FURTHEST_FROM_EDGE` default, see `SCAN_SOURCE_SENSITIVITY.md`), so a
+  comparison catalogue built that way never examined any plate's outer ~18′
+  and "zero cost in recall" inside that band is guaranteed by construction.
+  SuperCOSMOS's merged `sources` table, probed along the array edges of XE181
+  and XE002 through the epochs of its single-plate (R1-only) sources, holds
+  the *neighbouring* plate's POSS-I E detections inside ~10′ and switches to
+  the plate's own from ~15′ inward — so "unconfirmed" there means "not
+  persistent", which a genuine single-plate event also is. Per annulus on the
+  paper-parity S0 (R1 arm): <2′ 97.7%, 2–5′ 96.9%, 5–10′ 90.6%, 10–15′
+  52.3%, 15–20′ 21.7%, 20–30′ 16.9%, 30–60′ 16.6%, >60′ 21.6% unconfirmed.
+  The legs that do not share the blind spot are the survivors' own morphology
+  (distinct only inside ~5′) and the 2.16× excess of vetoless detections at
+  the rim, which is instrumental in origin but is an excess over the interior
+  rate rather than the whole rim population.
 - `cheb_own_deg` in the flags output is a linear-gnomonic approximation and
   drifts ~1′ from the GSSS polynomial at the rim. Use `edge_dist_arcmin` for
   boundary questions; it is computed from the plate's own WCS.
