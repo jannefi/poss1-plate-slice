@@ -236,7 +236,7 @@ python3 tools/union_parity_fullscale.py \
 | `docs/PARAMETERS.md` | every threshold, its origin, and whether you may change it |
 | `docs/REPRODUCING.md` | end-to-end reproduction guide |
 | `docs/` | method, astrometry, stage documentation |
-| `results/` | derived catalogues, gzipped — including [`s1-642-paper-parity-edge15-20260908/`](results/s1-642-paper-parity-edge15-20260908/), the paper-parity S0 with the 15′ plate-edge cut already applied (95,966 rows) |
+| `results/` | derived catalogues, gzipped — including [`s1-642-paper-parity-edge15-20260908/`](results/s1-642-paper-parity-edge15-20260908/), the paper-parity S0 with the 15′ plate-edge cut already applied (95,826 rows; revision 2 excludes two tiles with a broken astrometric refit, see `docs/WCSFIX_GUARD.md`) |
 
 All 16 post-processing stages ship, not only those used for the headline result,
 so you can chain them differently and see what changes. `RESULTS.md` records

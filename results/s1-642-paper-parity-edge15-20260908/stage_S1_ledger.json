@@ -1,13 +1,23 @@
 {
   "experimental": true,
-  "stage": "E15",
-  "run_dir": "/tmp/claude-1000/-home-janne-code-vasco60-repro-parity/039b67f2-d3c0-4754-88e2-d829d26b6db4/scratchpad/edgerun",
+  "stage": "S1",
+  "run_dir": "/home/janne/code/vasco60-repro-parity/work/s1_rev2/edgerun",
   "input_glob": "stages/stage_S0.csv",
   "core_radius_deg": 5.0,
   "core_radius_source": "operator-specified",
   "policy": "own",
   "cut_applied": true,
   "min_edge_arcmin": 15.0,
+  "exclude_tiles": [
+    "tile_RA24.686_DECp33.529",
+    "tile_RA63.809_DECp57.375"
+  ],
+  "excluded_rows_by_tile": {
+    "tile_RA24.686_DECp33.529": 259,
+    "tile_RA63.809_DECp57.375": 49
+  },
+  "excluded_tile_rows": 308,
+  "excluded_rows_kept_otherwise": 140,
   "plate_half_width_deg": 3.308,
   "columns_detected": {
     "src_id": "src_id",
@@ -18,7 +28,7 @@
   "plate_sources": {
     "headers_dir": "/srv/vasco/vasco60/metadata/plates/headers",
     "plates_loaded": 932,
-    "plate_map_csv": "/tmp/claude-1000/-home-janne-code-vasco60-repro-parity/039b67f2-d3c0-4754-88e2-d829d26b6db4/scratchpad/pm.csv",
+    "plate_map_csv": "work/runs/full642_gcp/plate_map.csv",
     "src_plate_csv": null,
     "centre_from_wcs": 932,
     "centre_offset_gt_0p5_deg": [
@@ -106,8 +116,8 @@
   },
   "totals": {
     "input_rows": 134976,
-    "kept_rows": 95966,
-    "dropped_rows": 39010,
+    "kept_rows": 95826,
+    "dropped_rows": 39150,
     "in_core_own": 134976,
     "in_core_best": 134976,
     "plate_unresolved_rows": 0,
@@ -148,7 +158,7 @@
     {
       "chunk": "stage_S0.csv",
       "input_rows": 134976,
-      "kept_rows": 95966,
+      "kept_rows": 95826,
       "in_core_own": 134976,
       "in_core_best": 134976,
       "plate_unresolved": 0,
@@ -181,13 +191,20 @@
         "15": 39010,
         "20": 49535,
         "30": 67089
+      },
+      "excluded_tile_rows": 308,
+      "excluded_rows_kept_otherwise": 140,
+      "excluded_by_tile": {
+        "tile_RA24.686_DECp33.529": 259,
+        "tile_RA63.809_DECp57.375": 49
       }
     }
   ],
   "outputs": {
-    "kept_csv": "/tmp/claude-1000/-home-janne-code-vasco60-repro-parity/039b67f2-d3c0-4754-88e2-d829d26b6db4/scratchpad/edgerun/stages/stage_E15_EDGE2.csv",
-    "flags_csv": "/tmp/claude-1000/-home-janne-code-vasco60-repro-parity/039b67f2-d3c0-4754-88e2-d829d26b6db4/scratchpad/edgerun/stages/stage_E15_EDGE2_flags.csv",
-    "ledger_json": "/tmp/claude-1000/-home-janne-code-vasco60-repro-parity/039b67f2-d3c0-4754-88e2-d829d26b6db4/scratchpad/edgerun/stages/stage_E15_EDGE2_ledger.json"
+    "kept_csv": "/home/janne/code/vasco60-repro-parity/work/s1_rev2/edgerun/stages/stage_E15X_EDGE2.csv",
+    "flags_csv": "/home/janne/code/vasco60-repro-parity/work/s1_rev2/edgerun/stages/stage_E15X_EDGE2_flags.csv",
+    "ledger_json": "/home/janne/code/vasco60-repro-parity/work/s1_rev2/edgerun/stages/stage_E15X_EDGE2_ledger.json",
+    "excluded_csv": "/home/janne/code/vasco60-repro-parity/work/s1_rev2/edgerun/stages/stage_E15X_EDGE2_excluded.csv"
   },
   "notes": [
     "Radial separation from PLATERA/PLATEDEC; the APS core is a circle, not the square plate boundary. cheb_own_deg is a diagnostic, not the cut.",

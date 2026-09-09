@@ -1,20 +1,29 @@
-S1 - paper-parity S0 with plate-edge cut (2026-09-08)
+S1 - paper-parity S0 with plate-edge cut (2026-09-08), REVISION 2 (2026-09-09)
 
 source            : results/s0-642-paper-parity-20260828/stage_S0.csv (134,976 rows)
 stage             : scripts/stage_edge_post_v2.py
 criterion         : edge_dist_arcmin >= 15.0  (distance to the row's own
                     plate array boundary)
+                    AND tile_id not in the two excluded tiles below
 radial core cut   : disabled (--core-radius-deg 5.0 > corner distance 4.678 deg)
 policy            : own  (the plate the row was actually detected on)
 
 input rows        : 134,976
-removed           :  39,010  (28.90%)
-kept              :  95,966  (71.10%)
+removed by edge   :  39,010  (28.90%)
+removed by tile   :     140  (rows of the two tiles that the edge cut had kept;
+                              308 rows sit on those tiles in S0)
+kept              :  95,826  (70.99%)
 min edge_dist     : 15.000 arcmin (by construction)
 
-recall cost       : 0.00% against the public vanish-possi list (5,399 rows)
-independent check : SuperCOSMOS already removes this population
-                    (0.36% of post-SCOS set within 5' of an edge vs 7.6% in S0)
+excluded tiles    : tile_RA24.686_DECp33.529 (XE296)  -- WCSFIX fit on 312 tie
+                    points, sigma 0.48", extrapolates ~7" wrong; 85% of its S0
+                    rows are Gaia stars displaced off the 5" veto
+                    tile_RA63.809_DECp57.375 (XE084)  -- sigma 0.88", 92% of its
+                    S0 rows have a Gaia star at 3-8" (41% by chance)
+                    See docs/WCSFIX_GUARD.md.
+
+revision 1 (2026-09-08) had 95,966 rows and included 137 + 3 rows of these
+tiles; the release was unannounced and is replaced in place.
 
 NOT a default. The stage is off unless --cut and --min-edge-arcmin are both
 passed, and prints a warning when active: the papers describe no such

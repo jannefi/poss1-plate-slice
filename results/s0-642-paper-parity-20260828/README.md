@@ -166,6 +166,39 @@ analysis. Treat it as a companion build for anyone specifically interested
 in how closely the published method (rather than VASCO60's own operational
 choices) reproduces at full survey scale.
 
+## Known defect (appendix added 2026-09-09) — one tile of displaced stars
+
+**The data files are unchanged**; the defect is documented rather than
+patched, and the affected rows can be dropped by `tile_id`. It is the same
+defect, on the same tile, as in the primary release — see that README's
+appendix for the mechanism in full.
+
+In short: on `tile_RA24.686_DECp33.529` (plate XE296) the per-tile Gaia refit
+had only 312 tie points, fitted at σ 0.48″ and reported `ok`, and extrapolates
+wrongly across the tile; real stars there sit ~7″ from their true positions,
+clear the 5″ vetoes, and survive as rows. Every row of this build was matched
+against its tile's plate-epoch Gaia neighbourhood with a 60″-shifted control:
+
+| | rows | Gaia star at 3–8″ | chance | offset vector (row − star) |
+|---|---:|---:|---:|---|
+| `tile_RA24.686_DECp33.529` (XE296) | **259** | **53%** | 7% | **(−4.0″, −6.0″)**, coherent |
+| `tile_RA63.809_DECp57.375` (XE084) | 49 | 92% | 39% | (+4.9″, +3.2″), coherent |
+| **whole catalogue** | 134,976 | **7.2%** (9,674) | **12.8%** (17,279) | — |
+
+Survey-wide the build sits well *below* chance for a nearby Gaia star, so
+this is local — about 120 displaced rows on the XE296 tile and about 25 on
+the XE084 tile, ~0.1% of the catalogue. The Gaia-invariant check shipped here
+tests for stars *within 5″* and cannot see a 7″ displacement.
+
+**Consequence for the derived product.** The plate-edge-cut catalogue S1
+([`../s1-642-paper-parity-edge15-20260908/`](../s1-642-paper-parity-edge15-20260908/))
+was built from this file and inherited 137 rows of the XE296 tile (those
+≥15′ from the array edge) and 3 of the XE084 tile; **S1 was re-cut on
+2026-09-09 without these two tiles** (revision 2, 95,826 rows). To do the
+same here, filter on `tile_id` ∉ {`tile_RA24.686_DECp33.529`,
+`tile_RA63.809_DECp57.375`} (308 rows). The pipeline gains a guard against
+this failure mode; see `docs/WCSFIX_GUARD.md`.
+
 ## Verify it
 
 ```bash
