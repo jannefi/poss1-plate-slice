@@ -262,6 +262,43 @@ identifiable artifact classes are the exception: their pixel content is
 unambiguous, and their position matches this metric closely enough to
 resolve which existing lever addresses them.
 
+#### Scaled up: the same answer on 30 plates, and what it means for the un-cut catalogue
+
+The pilot above was 9 plates and visual. Detecting the annotations
+systematically — connected regions brighter than 2× sky but below 0.85× the
+unexposed surround, at least 300 × 80 px and at least 45% filled — and running
+it over the 30 plates that contribute the most catalogue rows:
+
+| | |
+|---|---:|
+| plates with a detectable annotation region | 11 of 30 |
+| its distance to the nearest array boundary, median | **5.0′** |
+| regions beyond 15′ | **1**, and inspection shows it is a saturated bright star |
+| rows in the un-cut catalogue landing on one | **9** |
+| rows after a 15′ edge cut landing on one | **0**, of 12,987 |
+
+The handwritten annotations (plate number, date, field centre) behave like the
+printed title text: median 5.0′ in, comfortably inside the near-free band. The
+practical consequence for a user is the last two rows — **an un-cut catalogue
+retains a small number of rows sitting on ink, and any edge cut at 10′ or more
+removes all of them.**
+
+This is also the one argument in this document that is **categorical rather
+than statistical**. Everything else here says rows near an edge are *more
+often* instrumental; this says an identifiable subset of them is *certainly*
+not sky.
+
+#### The guarantee is about margins, not corners
+
+A cut on distance to the *nearest* boundary removes a border. Furniture placed
+in a **corner** can sit far from both edges and survive it. POSS-I's
+annotations happen to sit at the margin, so the cut reaches them — but that is
+a property of these plates, not of the instrument. On POSS-II red the
+densitometry spots used to linearise the density-to-intensity transformation
+(Gal et al., astro-ph/0210298) sit 17–22′ from *both* edges and pass a 15′ cut
+untouched. Anyone porting this lever to another survey should check where that
+survey puts its furniture before assuming a border cut reaches it.
+
 ## Conclusions
 
 1. **2° is the source's own criterion**, confirmed by two independent sources,
@@ -283,6 +320,12 @@ resolve which existing lever addresses them.
    inside the already-measured near-free band. `edge_dist_arcmin` was the
    right lever before this check; this confirms it against real examples
    rather than the general rim population.
+7. **That ground truth scales, and it is the one categorical argument here.**
+   Systematic detection over 30 plates puts the annotations a median 5′ from
+   the boundary; nine rows of the un-cut catalogue sit on one and none
+   survives a 15′ cut. Every other conclusion above is about rates. The
+   guarantee is about margins, not corners — on POSS-II red the densitometry
+   spots sit 17–22′ from both edges and a border cut does not reach them.
 
 ## Caveats
 
