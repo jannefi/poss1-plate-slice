@@ -81,6 +81,16 @@ rows; SuperCOSMOS from the same build's post-process flags, R1 arm):
    ELONGATION and SPREAD_MODEL match the plate interior and SNR_WIN is
    higher. Cutting that band is a **conservative margin**, not a finding that
    its rows are instrumental.
+4. **The cut also removes plate furniture, and that reason is categorical.**
+   POSS-I plates carry printed and handwritten annotations — plate number,
+   date, field centre, survey title — exposed into the margin. Across the 30
+   plates contributing the most rows here, a label region is detectable on 11
+   of them, sitting a median **5.0′** from the array boundary; **nine rows of
+   the un-cut S0 land on one, and none of them is in S1**. Points 1–3 say rows
+   near an edge are *more often* instrumental; this says an identifiable
+   subset of them is *certainly* not sky. It is the reason to prefer this
+   catalogue over the un-cut one even where the statistical case is only a
+   margin. See [`../../docs/PLATE_EDGE_MASK.md`](../../docs/PLATE_EDGE_MASK.md).
 
 ## What the recall and SuperCOSMOS figures can and cannot say
 

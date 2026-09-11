@@ -200,6 +200,44 @@ not. On the post-chain set only 0.36% of rows sit within 5′ of an edge, agains
 7.6% in S0, so **SuperCOSMOS has already removed that population**; the
 geometric cut is a cross-check on it rather than an additional filter.
 
+### It also removes plate furniture — a categorical reason, not a statistical one
+
+Every argument above is statistical: excess rates, SuperCOSMOS agreement,
+morphology by annulus. There is one more, and it is of a different kind.
+
+POSS-I plates carry **furniture** — printed and handwritten annotations exposed
+into the plate margin, giving the plate number, the exposure date and the field
+centre, plus the survey title. A detection landing on one is not a faint source
+of disputed nature. It is ink.
+
+Measured on the 30 plates carrying the most rows in the edge-cut catalogue,
+with furniture detected as connected regions brighter than 2× sky but below
+0.85× the unexposed surround, at least 300 × 80 px and at least 45% filled:
+
+| | |
+|---|---:|
+| plates with a detectable label region | 11 of 30 |
+| its distance to the nearest array boundary, median | **5.0′** |
+| regions beyond 15′ | **1**, and inspection shows it is a saturated bright star |
+| rows in the un-cut catalogue landing on one | **9** |
+| rows in the 15′ edge-cut catalogue landing on one | **0**, of 12,987 |
+
+The labels live at the margin, a median 5′ in, so a 15′ cut clears them three
+times over. All nine affected rows are already absent from the cut catalogue.
+
+This is what makes the cut worth applying even where the statistical case is
+only a conservative margin: the other reasons say rows in the band are *more
+often* instrumental, while this one says a specific, identifiable subset of
+them is *certainly* not sky.
+
+**The guarantee is about margins, not corners.** A cut on distance to the
+nearest boundary removes a border. Furniture placed in a *corner* can sit far
+from both edges and survive it — on POSS-II red plates the densitometry spots
+used to linearise the density-to-intensity transformation (Gal et al.,
+astro-ph/0210298) sit 17–22′ from both edges and pass a 15′ cut untouched.
+POSS-I furniture happens to sit at the margin; that is a property of these
+plates, not a property of the instrument.
+
 ---
 
 ## Conclusions
@@ -217,6 +255,10 @@ geometric cut is a cross-check on it rather than an additional filter.
 5. **Distance to the array boundary is the better lever** — 21% of rows for
    zero cost in published-catalogue recall, against 65% for a comparable
    radial cut.
+6. **It is also the only cut here with a categorical justification.** Plate
+   labels sit a median 5′ from the array boundary; nine rows of the un-cut
+   catalogue land on one across the 30 plates measured, and none survives the
+   15′ cut. Every other argument in this document is about rates.
 
 ## Caveats
 

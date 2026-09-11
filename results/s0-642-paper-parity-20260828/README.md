@@ -160,6 +160,22 @@ being selective for quality, and neither paper applies it as a blanket
 catalogue filter, only inside specific analyses. Included here only as a
 caveat against being asked for it, not as a recommended figure.
 
+## One thing to know before using it un-cut
+
+This catalogue has **no plate-edge cut**. Beyond the rim excess documented in
+[`docs/PLATE_EDGE_MASK.md`](../../docs/PLATE_EDGE_MASK.md), that means it
+retains a small number of rows sitting on **plate furniture** — the printed and
+handwritten annotations (plate number, date, field centre, survey title)
+exposed into the plate margin. Measured across the 30 plates contributing the
+most rows to the edge-cut companion: nine rows here land on a label region, and
+none of them survives a 15′ cut. Those labels sit a median 5′ from the array
+boundary, so any edge cut at 10′ or more removes them.
+
+If that matters for your use, take
+[`../s1-642-paper-parity-edge15-20260908/`](../s1-642-paper-parity-edge15-20260908/)
+instead, or apply `scripts/stage_edge_post_v2.py` yourself. The data files here
+are deliberately unchanged.
+
 ## What this catalogue is not
 
 Not a replacement for the primary release, not independently re-verified
