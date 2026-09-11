@@ -482,6 +482,20 @@ neighbours, with quarantine of tiles that fail it); the companion build's
 derived S1 product was re-cut without these tiles. Method and survey-wide
 numbers: `docs/WCSFIX_GUARD.md`.
 
+## One thing to know before using it un-cut
+
+This catalogue has **no plate-edge cut**. Alongside the rim excess documented
+in [`docs/PLATE_EDGE_MASK.md`](../../docs/PLATE_EDGE_MASK.md), that means it
+retains a small number of rows sitting on **plate furniture** — the printed and
+handwritten annotations (plate number, date, field centre, survey title)
+exposed into the plate margin, which SExtractor detects as spurious point
+sources. Measured across the 30 plates contributing the most rows: those
+annotations sit a median 5′ from the array boundary, and every affected row is
+removed by an edge cut at 10′ or more.
+
+Apply `scripts/stage_edge_post_v2.py` if that matters for your use. The data
+files here are deliberately unchanged.
+
 ## Verify it
 
 ```bash
