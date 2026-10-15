@@ -235,6 +235,8 @@ python3 tools/union_parity_fullscale.py \
 | `scripts/local_cache/` | build local Gaia / PS1 / USNO-B mirrors |
 | `docs/PARAMETERS.md` | every threshold, its origin, and whether you may change it |
 | `docs/REPRODUCING.md` | end-to-end reproduction guide |
+| `docs/DATASET_NAMING.md` | how the compared catalogues are named, and why |
+| `docs/REFERENCE_CATALOGUE_RELEASE_20261015.md` | the reference catalogue's 2026-10-14 publication, and what it changes |
 | `docs/` | method, astrometry, stage documentation |
 | `results/` | derived catalogues, gzipped |
 
@@ -312,6 +314,13 @@ scope stated, in [`docs/PARAMETERS.md`](docs/PARAMETERS.md).
   Survey (POSS-I) may be associated with nuclear testing and reports of
   unidentified anomalous phenomena*, *Scientific Reports* **15**, 34125.
   [doi:10.1038/s41598-025-21620-3](https://doi.org/10.1038/s41598-025-21620-3)
+- Bruehl, S., Doherty, B., Streblyanska, A., & Villarroel, B. (2026), *Use of
+  machine learning to enhance detection of transient astronomical phenomena in
+  historical observatory images*, *Scientific Reports* **16**, 31890.
+  [doi:10.1038/s41598-026-66148-2](https://doi.org/10.1038/s41598-026-66148-2)
+  (previously arXiv:2604.18799). Its code repository, public since 2026-10-14,
+  also carries the VASCO 2025 sample this pipeline is compared against — see
+  [`docs/REFERENCE_CATALOGUE_RELEASE_20261015.md`](docs/REFERENCE_CATALOGUE_RELEASE_20261015.md).
 
 **The debate over whether these sources are real**
 
@@ -399,6 +408,19 @@ Neither covers the underlying survey imagery.
 ## Independence
 
 This repository is not affiliated with, endorsed by, or produced in collaboration
-with the VASCO collaboration or any other group, and contains no unpublished data
+with the VASCO collaboration or any other group, and contains no data obtained
 from any of them. It is an independent reproduction, validated against published
 data.
+
+That claim is meant to be checked rather than taken on trust.
+[`tools/audit_independence.py`](tools/audit_independence.py) scans both the
+working tree and the entire git history for any trace of the reference
+catalogue and exits non-zero on a hit:
+
+```bash
+python3 tools/audit_independence.py
+```
+
+The reference catalogue itself became publicly available on 2026-10-14, after
+the last commit here; what that does and does not change is set out in
+[`docs/REFERENCE_CATALOGUE_RELEASE_20261015.md`](docs/REFERENCE_CATALOGUE_RELEASE_20261015.md).

@@ -68,8 +68,9 @@ establishes is **21.0%** — their own edge criterion sets aside **79.0%** of th
 working sample whenever an analysis depends on it.
 
 Read the denominator carefully here: 22,314 is a subset of the **106,339**
-northern transients, not of the full **107,875** across 635 plates
-(arXiv:2604.00056). Against the full catalogue the same count would read 20.7%,
+northern transients, not of the full
+**107,875** across 635 plates (doi:10.1038/s41598-026-66148-2,
+arXiv:2604.00056). Against the full catalogue the same count would read 20.7%,
 and quoting it that way silently mixes two different samples. This is a reading of
 the antecedent rather than a certainty — but it is the same contextual reading the
 section above uses to settle the retained-versus-discarded question, and applying

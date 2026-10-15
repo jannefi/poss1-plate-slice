@@ -19,9 +19,9 @@ red is the positive control (S0 survivors are red-plate detections by
 construction, so they must show real flux there), blue is the actual
 question.
 
-Fully S0-only. No V anywhere in this script -- public data (STScI cutouts,
-Gaia for polarity resolution only) and our own released S0. Publishable
-regardless of the V-publication question.
+Fully S0-only. No reference-catalogue rows anywhere in this script -- public
+data (STScI cutouts, Gaia for polarity resolution only) and our own released
+S0. Publishable regardless of the reference catalogue's publication status.
 
 Usage:
     python3 tools/blue_plate_hot_tile_check.py \\

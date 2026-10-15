@@ -109,15 +109,17 @@ def main() -> int:
     #
     # (a) the overlay: what the run covered and where candidates fell -- the
     #     information a footprint figure exists to carry.
-    # (b) S0 alone, plotted the way the VASCO team plots V: one colour, large
+    # (b) S0 alone, plotted the way the VASCO team plots their own catalogue:
+    #     one colour, large
     #     opaque markers, near-square panel.
     #
     # Panel (b) is not decoration. A wide panel with 0.35pt markers spreads the
     # same points over ~3.7x the area with ~57x smaller marks than their
     # published style, so the identical catalogue looks perhaps an order of
-    # magnitude sparser. Ours has ~14% MORE rows than V, and a reader comparing
-    # our figure against theirs by eye would conclude the opposite. Matching
-    # their style in one panel removes that false impression at no cost.
+    # magnitude sparser. Ours has ~14% MORE rows than the VASCO 2025 sample,
+    # and a reader comparing our figure against theirs by eye would conclude
+    # the opposite. Matching their style in one panel removes that false
+    # impression at no cost.
     fig, (ax, axb) = plt.subplots(
         2, 1, figsize=(15, 13.4), height_ratios=[1.0, 0.72])
     # Asymmetric encoding on purpose. There are 4x as many candidates as tiles,
@@ -165,7 +167,7 @@ def main() -> int:
             bbox=dict(boxstyle="round,pad=0.5", facecolor="white",
                       edgecolor="#999999", alpha=0.9))
 
-    # --- panel (b): S0 alone, comparable-by-eye with published V figures -------
+    # --- panel (b): S0 alone, comparable-by-eye with their published figures ---
     axb.scatter(s0.ra, s0.dec, s=14, c=C_S0, alpha=1.0, linewidths=0,
                 rasterized=True)
     axb.set_xlim(0, 360)

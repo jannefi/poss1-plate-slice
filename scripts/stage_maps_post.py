@@ -22,7 +22,8 @@ local (no VizieR/network dependency) since the MAPS mirror lives on disk.
 Why MAPS is a good veto candidate for POSS-I red detections
 -------------------------------------------------------------
 MAPS is pure POSS-I material -- the same imaging generation as both our
-own SExtractor detections and V's source plates -- unlike GSC (which
+own SExtractor detections and the VASCO 2025 sample's source plates --
+unlike GSC (which
 mixes POSS-I/POSS-II/other-epoch plates). Only objects independently
 matched on *both* the O and E plate exposures are in the catalog at all
 (unmatched images are scratches/defects/noise, excluded before this
