@@ -64,11 +64,17 @@ needs demonstrating rather than assuming, and two things do that:
    a hit. It was widened on 2026-10-15 after an audit found four prose
    references that its earlier patterns had not anticipated; all four were
    comments, none was data. See also `docs/DATASET_NAMING.md`.
-2. **The dates are checkable and they are not close.** Every commit in this
-   repository falls between **2026-08-08** and **2026-09-11**. The catalogue
-   became available on **2026-10-14**, at least a month after the last of them.
-   Nothing published here could have been tuned against a file that did not yet
-   exist publicly, and `git log` is the evidence.
+2. **The dates are checkable and they are not close.** Every commit that
+   produced a result here — every pipeline change, every stage, every released
+   catalogue — falls between **2026-08-08** and **2026-09-11**. The reference
+   catalogue became available on **2026-10-14**, at least a month after the
+   last of them. Nothing published here could have been tuned against a file
+   that did not yet exist publicly, and `git log` is the evidence.
+
+   Commits dated after 2026-10-14 are documentation only, this note among them;
+   `git log --stat` separates the two, and any future commit that touches the
+   pipeline will fall on the other side of that line and cannot rely on this
+   argument.
 
 That second point is the stronger of the two, and it has a shelf life: it holds
 for the existing history and stops holding the moment new work is done with the
