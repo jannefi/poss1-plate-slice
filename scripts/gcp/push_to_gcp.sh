@@ -4,7 +4,7 @@
 # Python 3.11 micromamba env to the GCP pilot VM, over plain SSH/rsync. No
 # plate FITS here: the VM fetches its own pilot plates directly from IRSA
 # (scripts/gcp/fetch_plates.sh) rather than using janne-pc's upload bandwidth.
-# No private V-csv either -- this VM never runs vetoes.
+# No reference-catalogue data either -- this VM never runs vetoes.
 #
 # Usage: GCP_HOST=<external-ip> ./scripts/gcp/push_to_gcp.sh
 set -euo pipefail

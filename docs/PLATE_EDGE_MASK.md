@@ -62,8 +62,9 @@ pre-filtered by the original team rather than recomputed independently, so it
 evidences *what they meant* rather than providing a separate measurement.
 
 **Consequence, on their own published figures:** the catalogue holds
-107,875 transients across 635 plates (arXiv:2604.00056), of which 22,314 survive
-the 2° criterion — so their own edge criterion sets aside **79.3%** of the
+107,875 transients across 635 plates (doi:10.1038/s41598-026-66148-2,
+arXiv:2604.00056), of which 22,314 survive the 2° criterion — so their own
+edge criterion sets aside **79.3%** of the
 catalogue whenever an analysis depends on it.
 
 ### "Within 2° of plate center" is under-specified

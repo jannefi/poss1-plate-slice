@@ -1,10 +1,27 @@
 #!/usr/bin/env python3
-"""Prove this repository is free of the private reference catalogue.
+"""Prove this repository is free of the reference catalogue it is compared to.
 
 The whole claim of this project is that the method needs nothing but public
 inputs -- the published plate list, IRSA's full-plate scans, and public
 catalogues. That claim is only worth something if it is checkable, so this script
 is the check, and anyone can run it.
+
+Updated 2026-10-15. The reference catalogue is no longer unpublished: its
+107,875 rows were released on 2026-10-14 in the code repository accompanying
+Bruehl et al. (2026), Scientific Reports 16, 31890
+(doi:10.1038/s41598-026-66148-2). That changes the reason this gate exists but
+not whether it is needed, in two ways, and both make it stricter rather than
+looser:
+
+  * Independence is now harder to demonstrate, not easier. While the catalogue
+    was unavailable, "we could not have used it" was nearly self-evident. Now
+    that anyone can download it, only an explicit, checkable audit separates a
+    pipeline that reproduces a result from one that was tuned against it. This
+    script is that audit.
+  * The naming convention is now a separate requirement of its own. In
+    anything outward-facing this project calls the dataset the "VASCO 2025
+    sample" -- the owning team's own term for it -- and never a single-letter
+    label. See docs/DATASET_NAMING.md. The bare-token rule below enforces that.
 
 It scans two places, because they fail differently:
 
@@ -45,12 +62,42 @@ BANNED = [
     r"radec_cache_supplement",
     r"\bv[-_]parity\b",
     r"\bbackfill\b",
-    # Prose references to the private catalogue. The filename patterns above miss
-    # these entirely -- "V-in-footprint" in a comment was found by eye, not by
-    # this script, which is why they are here now.
-    r"\bV[- ]?(in[- ]footprint|rows|catalog|catalogue|list|coords|coordinates|positions)\b",
-    r"\bthe V\b",
+    # Prose references to the reference catalogue. The filename patterns above
+    # miss these entirely -- "V-in-footprint" in a comment was found by eye, not
+    # by this script, which is why they are here now.
+    #
+    # Widened 2026-10-15 after an audit found four live occurrences that the
+    # earlier patterns did not catch: "V's source plates", "No V anywhere",
+    # "the V-publication question", and "published V figures". Each was a
+    # grammatical form the list did not anticipate, which is the argument for
+    # the bare-token rule in BARE_V rather than for yet more hand-written
+    # alternatives.
 ]
+
+# Naming forms. These are about what the dataset is CALLED, so unlike the list
+# above they are exempt on a line that is plainly about photometry -- Johnson V
+# is a real band and "the V band" is not a leak. Keeping the two lists separate
+# is the point: a filename or an artifact name is never excused by context,
+# a prose label sometimes is.
+BANNED_NAME = [
+    r"\bV[- ]?(in[- ]footprint|rows|catalog|catalogue|list|coords|coordinates|positions)\b",
+    r"\bV[- ]?(parity|recall|match|matched|free|hostile|neutral|supplement|publication|side|only)\b",
+    r"\bthe V\b",
+    r"\bno V\b",
+    r"\bset V\b",
+]
+
+# The catch-all. Any bare "V" or "V's" used as a name, in any grammatical form
+# the list above failed to anticipate. This is what makes the gate robust
+# against rephrasing instead of against a fixed vocabulary.
+BARE_V = r"\bV[\u2019']?s?\b"
+
+# ...except where a capital V is a real astronomical term rather than a label.
+# Johnson V is a photometric band and appears legitimately in magnitude talk,
+# so a line that is clearly about photometry is not a naming violation. Kept
+# deliberately narrow: it exempts the line, so anything added to it weakens the
+# gate, and nothing belongs here that is not a standard term of art.
+EXEMPT = r"\bV[- ]?(band|mag|magnitude|filter)\b|\bJohnson\b|\bB[- ]?V\b"
 
 # Tokens that are PUBLIC, but only safe with their source attached.
 #
@@ -69,13 +116,35 @@ BANNED = [
 CONDITIONAL = [
     (
         r"107[,_]?875",
-        r"2604\.00056|arXiv|PASP|Doherty|published",
-        "public via arXiv:2604.00056 -- keep the citation on the same line",
+        r"2604\.00056|s41598-026-66148|10\.1038|arXiv|PASP|Doherty|Bruehl|published",
+        "public via doi:10.1038/s41598-026-66148-2 (and arXiv:2604.00056) -- "
+        "keep the citation on the same line",
     ),
 ]
 
 # Paths that are allowed to mention the tokens, because their job is to name them.
-ALLOW = {"tools/audit_independence.py"}
+ALLOW = {"tools/audit_independence.py", "docs/DATASET_NAMING.md"}
+
+
+_NAME_RE = re.compile("|".join(BANNED_NAME), re.I)
+_BARE_V_RE = re.compile(BARE_V)          # case-sensitive: only a capital V is a label
+_EXEMPT_RE = re.compile(EXEMPT, re.I)
+
+
+def _bare_v_hit(line: str) -> bool:
+    """True for a naming violation on this line.
+
+    Covers both the spelled-out forms in BANNED_NAME and any bare "V"/"V's"
+    used as a label. The bare check is case-sensitive on purpose: lowercase "v"
+    turns up constantly in version strings and abbreviations and is never the
+    label; only the capital is.
+
+    Either way the line is excused if it is plainly about photometry, because
+    Johnson V is a band and not this catalogue.
+    """
+    if not (_NAME_RE.search(line) or _BARE_V_RE.search(line)):
+        return False
+    return not _EXEMPT_RE.search(line)
 
 
 def _conditional_hit(line: str) -> str | None:
@@ -128,6 +197,10 @@ def scan_tree(root: Path) -> list[tuple[str, int, str]]:
             if pat.search(line):
                 hits.append((rel, i, line.strip()[:120]))
                 continue
+            if _bare_v_hit(line):
+                hits.append((rel, i, f"[bare name] {line.strip()[:100]}  <- use "
+                                     f"\"VASCO 2025 sample\"; see docs/DATASET_NAMING.md"))
+                continue
             why = _conditional_hit(line)
             if why:
                 hits.append((rel, i, f"[uncited] {line.strip()[:100]}  <- {why}"))
@@ -159,6 +232,9 @@ def scan_history(root: Path) -> list[str]:
         if ln.startswith("+") and cur not in ALLOW:
             if pat.search(ln):
                 hits.append(f"{cur}: {ln.strip()[:100]}")
+            elif _bare_v_hit(ln):
+                hits.append(f"{cur}: [bare name] {ln.strip()[:90]}  <- use "
+                            f"\"VASCO 2025 sample\"")
             else:
                 why = _conditional_hit(ln)
                 if why:
