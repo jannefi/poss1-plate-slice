@@ -64,6 +64,39 @@ whole line, so anything added to it weakens the gate.
 This file is on the audit's allow-list, because its job is to name the thing it
 bans. It is the only documentation file that is.
 
+### The history baseline
+
+Git history cannot be edited in place. Removing a line from it means rewriting
+every commit after it and force-pushing, which breaks every existing clone —
+a cure worse than the disease when the line in question is a comment rather
+than data. But leaving the gate permanently red is worse still: a check that
+always fails stops being read, and then it protects nothing.
+
+So the audit carries `tools/audit_independence_baseline.json`: **eight
+pre-existing history hits, reviewed on 2026-10-15 and accepted**. All eight are
+comments or prose in tracked source — the full list, with a reason for each, is
+in that file. **No row of any reference catalogue has ever been committed to
+this repository**, which was verified separately by scanning the history for
+path and artifact-filename tokens; the only such hit is a comment in
+`scripts/gcp/push_to_gcp.sh` asserting that a file is *not* copied to a VM.
+
+Three properties keep the baseline from becoming a loophole:
+
+- **It stores hashes, not text.** A baseline that quoted the offending lines
+  would reintroduce the very tokens the audit exists to exclude, and would then
+  need allow-listing itself. The key is `sha256(path + line)[:16]`, so change
+  the line and the key changes — an entry cannot be stretched to cover
+  something new.
+- **It never applies to the working tree.** Anything you can fix by editing a
+  file, you must; the baseline covers only what editing cannot reach.
+- **It is visible and it shrinks.** Every run prints how many lines are
+  excused, and an entry that stops matching anything is reported as stale
+  rather than kept silently.
+
+`--update-baseline` re-records the current hits. It makes the gate green by
+lowering the bar rather than by fixing anything, so it is for a deliberate,
+reviewed decision and not for getting a red run to pass.
+
 ## How to validate
 
 ```bash

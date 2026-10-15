@@ -1,0 +1,46 @@
+{
+  "note": "Known history hits, accepted on review. Git history cannot be edited in place, so these are recorded rather than removed. Keys are sha256(path + line)[:16]; the text is deliberately not stored, so this file never reproduces what it describes. Every entry weakens the gate by one line -- keep the list short and justify each addition. Reviewed 2026-10-15: all eight are comments or prose in tracked source. No row of any reference catalogue has ever been committed to this repository -- verified separately by scanning history for path and artifact-filename tokens, whose only hit is the push_to_gcp.sh comment asserting such a file's absence.",
+  "recorded": "2026-10-15",
+  "entries": [
+    {
+      "key": "40d74ddac247aa0c",
+      "path": "tools/blue_plate_hot_tile_check.py",
+      "why": "module docstring asserting the script uses no reference-catalogue data; the assertion is true, the wording used the old label"
+    },
+    {
+      "key": "6d998681cf6d648f",
+      "path": "docs/PLATE_EDGE_MASK.md",
+      "why": "published row count without its citation on the same line; the figure is public (doi:10.1038/s41598-026-66148-2), the citation sat one line below"
+    },
+    {
+      "key": "760bee5fc18d8d40",
+      "path": "tools/s0_footprint_overlay.py",
+      "why": "figure-layout comments explaining why one panel matches the other group's plotting style; prose only"
+    },
+    {
+      "key": "7994375971311abe",
+      "path": "tools/blue_plate_hot_tile_check.py",
+      "why": "module docstring asserting the script uses no reference-catalogue data; the assertion is true, the wording used the old label"
+    },
+    {
+      "key": "7b118c7674c3268d",
+      "path": "scripts/gcp/push_to_gcp.sh",
+      "why": "comment listing what is NOT copied to the pilot VM; names a file's absence, not its contents"
+    },
+    {
+      "key": "8dd71014224e2298",
+      "path": "scripts/stage_maps_post.py",
+      "why": "docstring explaining why MAPS suits a POSS-I veto; prose only"
+    },
+    {
+      "key": "93a9096dcda0f63d",
+      "path": "tools/s0_footprint_overlay.py",
+      "why": "figure-layout comments explaining why one panel matches the other group's plotting style; prose only"
+    },
+    {
+      "key": "cb05ee3fa2499a47",
+      "path": "tools/s0_footprint_overlay.py",
+      "why": "figure-layout comments explaining why one panel matches the other group's plotting style; prose only"
+    }
+  ]
+}

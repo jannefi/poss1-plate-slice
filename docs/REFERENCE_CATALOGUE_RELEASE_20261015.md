@@ -61,9 +61,13 @@ needs demonstrating rather than assuming, and two things do that:
 
 1. **`tools/audit_independence.py`** scans both the working tree and the entire
    git history for any trace of the reference catalogue, and exits non-zero on
-   a hit. It was widened on 2026-10-15 after an audit found four prose
-   references that its earlier patterns had not anticipated; all four were
-   comments, none was data. See also `docs/DATASET_NAMING.md`.
+   a hit. It was widened on 2026-10-15 after an audit found five prose
+   references that its earlier patterns had not anticipated; all five were
+   comments, none was data. Those already in the published history, which
+   editing cannot reach, are recorded in
+   `tools/audit_independence_baseline.json` with a reason for each, so the gate
+   fails on anything new rather than failing permanently. See
+   `docs/DATASET_NAMING.md`.
 2. **The dates are checkable and they are not close.** Every commit that
    produced a result here — every pipeline change, every stage, every released
    catalogue — falls between **2026-08-08** and **2026-09-11**. The reference
