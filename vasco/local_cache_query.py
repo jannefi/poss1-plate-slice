@@ -284,6 +284,57 @@ def query_ps1_bright_stars(ra: float, dec: float, radius_arcmin: float = 45.0,
 
 # ── USNO-B1.0 ────────────────────────────────────────────────────────
 
+def query_usnob_bright_stars(ra: float, dec: float, radius_arcmin: float = 45.0,
+                             rmag_max: float = 16.0):
+    """Query local USNO-B cache for bright stars → list[BrightStar].
+
+    USNO-B1.0 counterpart of query_ps1_bright_stars, for the diffraction-spike
+    mask. Solano et al. (2022) use USNO-B1.0 here; PS1 was this pipeline's
+    engineering substitution, so this restores the paper's catalogue.
+
+    Magnitude semantics follow the paper's rule literally. It tests
+    "Rmag1 or Rmag2" against each threshold, so the star is represented by the
+    BRIGHTER (numerically smaller) of its two valid red magnitudes -- R1 from
+    POSS-I, R2 from POSS-II. Either one being bright enough triggers rejection,
+    which is exactly what min() expresses. Collapsing to a single value keeps
+    SpikeRuleConst/SpikeRuleLine unchanged, so switching catalogue changes one
+    variable and nothing else.
+
+    Note the constants in cli_pipeline (const 12.4; line -0.09/arcsec, 15.3)
+    are the paper's, and the paper calibrated them on USNO-B R magnitudes --
+    they were previously applied to PS1 r, a different photometric system.
+
+    Returns None if VASCO_USNOB_CACHE is unset, matching every other function
+    in this file (the caller decides whether to fall through or fail).
+    """
+    from vasco.mnras.spikes import BrightStar, _is_valid_mag
+
+    cache = os.getenv("VASCO_USNOB_CACHE")
+    if not cache:
+        return None
+
+    df = _cone_query(cache, ra, dec, radius_arcmin,
+                     columns=["ra", "dec", "R1mag", "R2mag"])
+
+    out = []
+    for _, r in df.iterrows():
+        mags = []
+        for key in ("R1mag", "R2mag"):
+            v = r[key]
+            if v is None or np.isnan(v):
+                continue
+            v = float(v)
+            if _is_valid_mag(v):
+                mags.append(v)
+        if not mags:
+            continue
+        rmag = min(mags)          # "R1 or R2" -> the brighter of the two
+        if not (rmag <= rmag_max):
+            continue
+        out.append(BrightStar(ra=float(r["ra"]), dec=float(r["dec"]), rmag=rmag))
+    return out
+
+
 def query_usnob(tile_dir: Path, ra: float, dec: float,
                 radius_arcmin: float) -> Path | None:
     """Query local USNO-B cache → write usnob_neighbourhood.csv.

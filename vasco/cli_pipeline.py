@@ -38,7 +38,7 @@ from vasco.utils.stilts_wrapper import stilts_xmatch
 from astropy.table import Table
 from vasco.mnras.filters_mnras import apply_extract_filters, apply_morphology_filters
 from vasco.mnras.spikes import (
-    fetch_bright_ps1, apply_spike_cuts,
+    fetch_bright_ps1, fetch_bright_usnob, apply_spike_cuts,
     SpikeConfig, SpikeRuleConst, SpikeRuleLine
 )
 from vasco.mnras.hpm import backprop_gaia_row
@@ -468,14 +468,43 @@ def _apply_mnras_filters_and_spikes(tile_dir: Path, sex_csv: Path, buckets: dict
     # center; adding the 90″ (1.5′) spike radius gives ≈43.9′ → rounded up to 45′.
     # search_radius_arcmin=1.5 enforces the 90″ paper rule as the per-candidate gate.
 
+    # Which catalogue supplies the bright stars. PS1 is the historical default
+    # (an engineering substitution, deviation #4); 'usnob' restores the
+    # catalogue Solano et al. (2022) actually use, and makes the magnitude
+    # constants below photometrically consistent -- they are the paper's, and
+    # the paper calibrated them on USNO-B R, not PS1 r.
+    # The 90" association radius and the rules themselves do NOT change with
+    # this switch: exactly one variable moves.
+    spike_cat = (os.getenv('VASCO_SPIKE_CATALOG') or 'ps1').strip().lower()
+    if spike_cat not in ('ps1', 'usnob'):
+        raise SystemExit(f"[FATAL] VASCO_SPIKE_CATALOG={spike_cat!r} is not one of ps1|usnob")
+    # Checked HERE, not inside the try below: that try ends in
+    # `except Exception: bright = []`, which would swallow the mirror-missing
+    # error and silently run with NO spike mask at all -- a worse outcome than
+    # either catalogue. Fail before entering it.
+    if spike_cat == 'usnob' and not os.getenv('VASCO_USNOB_CACHE'):
+        raise SystemExit(
+            "[FATAL] VASCO_SPIKE_CATALOG=usnob needs VASCO_USNOB_CACHE set "
+            "(the USNO-B1.0 Parquet mirror). Refusing to run: the fallback "
+            "path would silently produce an unmasked catalogue.")
+
     center = _tile_center_from_index_or_name(tile_dir)
     bright = []
     if center:
-        cache_path = (tile_dir / 'catalogs' / 'ps1_bright_stars_r16_rad45.csv')
+        # Cache key carries the catalogue, so a PS1 cache can never be read as
+        # USNO-B (or vice versa) after a switch.
+        cache_path = (tile_dir / 'catalogs' /
+                      f'{spike_cat}_bright_stars_r16_rad45.csv')
         try:
             # Use cache if present
             if cache_path.exists() and cache_path.stat().st_size > 0:
                 bright = _read_bright_cache(cache_path)
+            elif spike_cat == 'usnob':
+                # Mirror-only by design; raises rather than degrading silently.
+                bright = fetch_bright_usnob(
+                    center[0], center[1], radius_arcmin=45.0, rmag_max=16.0
+                )
+                _write_bright_cache(cache_path, bright)
             else:
                 bright = fetch_bright_ps1(
                     center[0], center[1],
@@ -501,6 +530,21 @@ def _apply_mnras_filters_and_spikes(tile_dir: Path, sex_csv: Path, buckets: dict
             )
         )
         buckets['spikes_rejected'] += len(rejected)
+        # The spike stage used to log nothing at all, so after a run there was no
+        # record of whether the mask ran or which catalogue supplied its stars --
+        # recoverable only by inferring it from the direction of the row count.
+        # An empty star list is called out separately: `except Exception:
+        # bright = []` above degrades to NO MASK, which removes nothing and so
+        # reads downstream as a permissive catalogue rather than as a failure.
+        if not bright:
+            print('[POST][WARN]', tile_dir.name,
+                  f'spike mask ran with ZERO bright stars (catalogue={spike_cat}) '
+                  f'-- nothing was masked; treat this tile as unmasked, not as a result',
+                  flush=True)
+        else:
+            print('[POST][INFO]', tile_dir.name,
+                  f'spike mask: catalogue={spike_cat} bright={len(bright)} '
+                  f'rejected={len(rejected)} kept={len(kept)}', flush=True)
 
         # Write final filtered rows (may be empty, header preserved)
         fieldnames = (kept[0].keys() if kept else (rows[0].keys() if rows else []))
@@ -1630,8 +1674,32 @@ def cmd_step4_xmatch(args: argparse.Namespace) -> int:
     run_dir = _build_run_dir(Path(args.workdir) if args.workdir else None)
     p2 = run_dir / 'pass2.ldac'
     if not p2.exists():
-        print('[STEP4][ERROR] pass2.ldac missing. Run step3-psf-and-pass2 first.')
-        return 2
+        # The LDAC's ONLY role downstream is producing sextractor_pass2.csv via
+        # _ensure_sextractor_csv, which already declines to regenerate when the
+        # CSV is newer. So a tile that still has a valid CSV needs no LDAC: the
+        # veto, filters, spike mask and dedup all read the CSV.
+        #
+        # This matters because it makes an already-extracted run re-runnable
+        # under a different configuration -- WCSFIX on/off, a different veto set,
+        # a different spike catalogue -- without repeating SExtractor + PSFEx,
+        # which is the only expensive stage (~25 min/plate). The harvested
+        # catalogue is pre-veto and pre-spike-mask, so it is independent of all
+        # of those choices.
+        #
+        # Announced loudly rather than silently: with no LDAC there is nothing
+        # to check the CSV's freshness against, so the operator must know the
+        # detections came from a prior extraction.
+        fallback_csv = run_dir / 'catalogs' / 'sextractor_pass2.csv'
+        if fallback_csv.exists() and fallback_csv.stat().st_size > 0:
+            print(f'[STEP4][INFO] pass2.ldac absent; proceeding from the existing '
+                  f'{fallback_csv.name} ({fallback_csv.stat().st_size} bytes). '
+                  f'Detections come from a PRIOR extraction and cannot be '
+                  f'freshness-checked against an LDAC.')
+        else:
+            print('[STEP4][ERROR] pass2.ldac missing and no usable '
+                  'catalogs/sextractor_pass2.csv to fall back on. '
+                  'Run step3-psf-and-pass2 first.')
+            return 2
 
     import os
 
@@ -1834,6 +1902,27 @@ def cmd_step4_xmatch(args: argparse.Namespace) -> int:
     try:
         raw_fits = next(iter(sorted((run_dir / 'raw').glob('*.fits'))), None)
         plate_epoch = _plate_epoch_year_from_fits(raw_fits) if raw_fits else None
+        if plate_epoch is None:
+            # Post-hoc re-runs work from a harvested catalogue with no tile FITS,
+            # so the epoch cannot be read from a header. It is a per-PLATE
+            # constant (one plate, one DATE-OBS), so an explicit override is
+            # exact rather than approximate -- see the plate epoch lookup built
+            # for the epoch delivery.
+            #
+            # Worth overriding rather than tolerating: without an epoch the run
+            # SKIPS proper-motion propagation entirely, and over a ~65-year
+            # baseline a 15 mas/yr star moves 1.0", a fifth of the veto radius.
+            # The veto then silently fails to remove real moving stars, which is
+            # a change in results, not a degradation in convenience.
+            env_epoch = os.getenv('VASCO_PLATE_EPOCH_YEAR', '').strip()
+            if env_epoch:
+                try:
+                    plate_epoch = float(env_epoch)
+                    print(f'[STEP4][INFO] {run_dir.name} plate epoch from '
+                          f'VASCO_PLATE_EPOCH_YEAR={plate_epoch:.3f} (no tile FITS)')
+                except ValueError:
+                    print(f'[STEP4][WARN] {run_dir.name} VASCO_PLATE_EPOCH_YEAR='
+                          f'{env_epoch!r} is not a number; ignoring')
         if plate_epoch is not None:
             print(f'[STEP4][INFO] {run_dir.name} plate epoch = {plate_epoch:.3f}')
             catdir = run_dir / 'catalogs'
