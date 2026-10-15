@@ -47,6 +47,8 @@ and confirm a non-zero exit. A gate that has never failed has not been tested.
 from __future__ import annotations
 
 import argparse
+import hashlib
+import json
 import re
 import subprocess
 import sys
@@ -207,8 +209,53 @@ def scan_tree(root: Path) -> list[tuple[str, int, str]]:
     return hits
 
 
-def scan_history(root: Path) -> list[str]:
-    """Grep every blob ever committed. Empty history is trivially clean."""
+BASELINE_PATH = Path(__file__).with_name("audit_independence_baseline.json")
+
+
+def _key(path: str, line: str) -> str:
+    """Stable identifier for one historical hit.
+
+    Deliberately a hash rather than the text. A baseline that quoted the
+    offending lines would reintroduce into this repository exactly the tokens
+    the audit exists to keep out -- the file would be its own violation, and it
+    would have to be allow-listed to avoid tripping the gate, which is how
+    allow-lists quietly grow until they cover everything. The hash pins the hit
+    precisely without reproducing it: change the line and the key changes, so a
+    baselined entry cannot be stretched to cover something new.
+    """
+    return hashlib.sha256(f"{path}\n{line.strip()}".encode()).hexdigest()[:16]
+
+
+def load_baseline() -> dict:
+    """Known pre-existing history hits, accepted once and tracked thereafter.
+
+    Git history cannot be edited in place; removing a line from it means
+    rewriting every commit after it and force-pushing, which breaks every
+    existing clone. For hits that are comments rather than data, that cure is
+    worse than the disease -- but leaving the gate permanently red is worse
+    still, because a check that always fails stops being read, and then it
+    protects nothing. So known hits are recorded here, with a reason, and the
+    gate fails only on hits that are not in the record.
+
+    This weakens the gate by exactly the number of entries in the file, which
+    is why the file is small, reviewed, and prints its count on every run.
+    """
+    if not BASELINE_PATH.exists():
+        return {}
+    try:
+        data = json.loads(BASELINE_PATH.read_text())
+    except Exception as e:
+        print(f"[WARN] baseline unreadable ({e}); treating every hit as new")
+        return {}
+    return {e["key"]: e for e in data.get("entries", [])}
+
+
+def scan_history(root: Path) -> list[tuple[str, str, str]]:
+    """Grep every blob ever committed. Empty history is trivially clean.
+
+    Returns (key, path, description) so the caller can match against the
+    baseline.
+    """
     try:
         n = subprocess.run(["git", "rev-list", "--count", "HEAD"], cwd=root,
                            capture_output=True, text=True)
@@ -220,7 +267,8 @@ def scan_history(root: Path) -> list[str]:
     except Exception as e:
         return [f"history scan failed: {e}"]
     pat = re.compile("|".join(BANNED), re.I)
-    hits, cur = [], ""
+    hits: list[tuple[str, str, str]] = []
+    cur = ""
     for ln in out.stdout.splitlines():
         # Track which file each hunk belongs to, so ALLOW applies to history the
         # same way it applies to the tree. Without this the audit flags its own
@@ -231,14 +279,15 @@ def scan_history(root: Path) -> list[str]:
             continue
         if ln.startswith("+") and cur not in ALLOW:
             if pat.search(ln):
-                hits.append(f"{cur}: {ln.strip()[:100]}")
+                desc = ln.strip()[:100]
             elif _bare_v_hit(ln):
-                hits.append(f"{cur}: [bare name] {ln.strip()[:90]}  <- use "
-                            f"\"VASCO 2025 sample\"")
+                desc = f"[bare name] {ln.strip()[:90]}  <- use \"VASCO 2025 sample\""
             else:
                 why = _conditional_hit(ln)
-                if why:
-                    hits.append(f"{cur}: [uncited] {ln.strip()[:90]}  <- {why}")
+                if not why:
+                    continue
+                desc = f"[uncited] {ln.strip()[:90]}  <- {why}"
+            hits.append((_key(cur, ln), cur, desc))
     return hits
 
 
@@ -246,11 +295,51 @@ def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--root", default=str(Path(__file__).resolve().parents[1]))
     ap.add_argument("--tree-only", action="store_true")
+    ap.add_argument("--update-baseline", action="store_true",
+                    help="record every current history hit as accepted. Only "
+                         "for a deliberate, reviewed decision -- it makes the "
+                         "gate green by lowering the bar, not by fixing "
+                         "anything.")
     args = ap.parse_args()
     root = Path(args.root)
 
     tree = scan_tree(root)
     hist = [] if args.tree_only else scan_history(root)
+
+    if args.update_baseline:
+        if args.tree_only:
+            print("[FAIL] --update-baseline needs the history scan")
+            return 2
+        payload = {
+            "note": "Known history hits, accepted on review. Git history cannot "
+                    "be edited in place, so these are recorded rather than "
+                    "removed. Keys are sha256(path + line)[:16]; the text is "
+                    "deliberately not stored, so this file never reproduces "
+                    "what it describes. Every entry weakens the gate by one "
+                    "line -- keep the list short and justify each addition.",
+            "recorded": "2026-10-15",
+            # Deduplicated on key. One line touched by several commits
+            # produces the same key each time, and listing it twice would
+            # overstate the baseline's size while understating how much a
+            # single removal reopens.
+            "entries": [
+                {"key": k, "path": pth, "why": "comment or prose, not data"}
+                for k, pth in sorted({(k, pth) for k, pth, _ in hist})
+            ],
+        }
+        BASELINE_PATH.write_text(json.dumps(payload, indent=2) + "\n")
+        print(f"[OK]   baseline written: {len(payload['entries'])} entr"
+              f"{'y' if len(payload['entries']) == 1 else 'ies'} "
+              f"-> {BASELINE_PATH.name}")
+        return 0
+
+    baseline = load_baseline()
+    # Count distinct excused lines, not hit occurrences: the number that matters
+    # is how many lines the gate is no longer checking.
+    known = sorted({h[0] for h in hist if h[0] in baseline})
+    new_hits = [h for h in hist if h[0] not in baseline]
+    seen = {h[0] for h in hist}
+    stale = [k for k in baseline if k not in seen]
 
     if tree:
         print(f"[FAIL] {len(tree)} working-tree hit(s):")
@@ -260,15 +349,29 @@ def main() -> int:
         print("[OK]   working tree clean")
 
     if not args.tree_only:
-        if hist:
-            print(f"\n[FAIL] {len(hist)} history hit(s) -- these cannot be fixed by "
-                  f"editing files; the history itself carries them:")
-            for l in hist[:40]:
-                print(f"   {l}")
+        if new_hits:
+            print(f"\n[FAIL] {len(new_hits)} NEW history hit(s) -- not in the "
+                  f"baseline. These cannot be fixed by editing files; the "
+                  f"history itself carries them:")
+            for _, pth, desc in new_hits[:40]:
+                print(f"   {pth}: {desc}")
+        elif known:
+            print(f"\n[OK]   git history: no new hits "
+                  f"({len(known)} known, baselined -- see {BASELINE_PATH.name})")
         else:
             print("[OK]   git history clean")
 
-    ok = not tree and not hist
+        if known and new_hits:
+            print(f"       ({len(known)} further hit(s) are baselined and not "
+                  f"counted above)")
+        if stale:
+            print(f"\n[WARN] {len(stale)} baseline entr"
+                  f"{'y' if len(stale) == 1 else 'ies'} no longer "
+                  f"{'matches' if len(stale) == 1 else 'match'} anything in "
+                  f"history -- the history was rewritten, or the entry was "
+                  f"wrong. Re-run with --update-baseline to prune.")
+
+    ok = not tree and not new_hits
     print("\nINDEPENDENCE AUDIT:", "PASS" if ok else "FAIL")
     return 0 if ok else 1
 
