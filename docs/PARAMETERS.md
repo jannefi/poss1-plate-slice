@@ -59,14 +59,44 @@ own epoch silently fails to veto real moving stars.
 | fetch radius | 90′ | engineering |
 | association distance | magnitude-dependent rules, `SpikeConfig` | paper |
 
-**Deviation:** Solano et al. use USNO-B1.0 for the spike mask; this pipeline uses
-PS1. This is a **deliberate, test-driven engineering choice**, made in the
-original `vasco` pipeline and carried forward — see its CHANGELOG entry
+**Deviation:** Solano et al. use USNO-B1.0 for the spike mask; this pipeline
+defaults to PS1. This is a **deliberate, test-driven engineering choice**, made
+in the original `vasco` pipeline and carried forward — see its CHANGELOG entry
 [`[0.06.9]`, 2025-11-22](https://github.com/jannefi/vasco/blob/b1cefc05d054d5b235603a80433fa3f16157f186/CHANGELOG.md?plain=1#L23).
-It is reversible.
 
-The two have not been compared head to head at survey scale. A local USNO-B
-mirror now makes that practical, and it is an open item.
+### Both arms ship — select with environment variables
+
+The USNO-B arm is implemented and was run at survey scale. Until 2026-10-15 it
+lived on a separate `paper-parity` branch; it is now on `main`, selected by
+configuration rather than by checkout, and **the default is unchanged**.
+
+| | primary arm (default) | paper-parity arm |
+|---|---|---|
+| spike-mask catalogue | PS1, `rMeanPSFMag <= 16` | **USNO-B1.0** |
+| cross-match veto catalogues | Gaia + PS1 + USNO-B | **Gaia + PS1 only** |
+| selected by | nothing set | `VASCO_SPIKE_CATALOG=usnob`, `VASCO_DISABLE_USNOB=1`, `VASCO_USNOB_CACHE=<path>` |
+| S0 | [`results/s0-642-20260814/`](../results/s0-642-20260814/), 122,820 rows | [`results/s0-642-paper-parity-20260828/`](../results/s0-642-paper-parity-20260828/), 134,976 rows |
+| with the 15′ edge cut | — | [`results/s1-642-paper-parity-edge15-20260908/`](../results/s1-642-paper-parity-edge15-20260908/), 95,826 rows |
+
+With nothing set, `VASCO_SPIKE_CATALOG` resolves to `ps1` and the run is the
+primary arm exactly as before. Two guards make the USNO-B arm hard to run by
+accident or to misread afterwards: selecting it without `VASCO_USNOB_CACHE` is
+a fatal error rather than a silent fall-back to a different catalogue, and the
+bright-star cache filename carries the catalogue name, so a PS1 cache can never
+be read as a USNO-B one.
+
+**Why the arm is worth having.** The spike constants (12.4, and −0.09/15.3) are
+the paper's, and the paper calibrated them on USNO-B **R** magnitudes. The
+primary arm applies them to PS1 **r**. The paper-parity arm is therefore the
+photometrically consistent one, which is the sense in which it tracks the
+published method more closely. Neither is "correct" — they are two builds, kept
+side by side, and the primary release remains the one to cite unless the
+paper-parity variant is specifically wanted.
+
+**Not a head-to-head measurement.** The two arms differ in *two* settings at
+once, so the difference between their row counts is not attributable to the
+spike catalogue alone. Isolating either lever would need a run that changes only
+that one.
 
 The 90′ **fetch** radius is not an association distance. A 60′ square tile's far
 corner is 30·√2 ≈ 42.4′ from centre, so 90′ covers the whole tile plus margin for
@@ -241,7 +271,8 @@ three is in the README.
 1. **Simplified tessellation** — plain 7×7 grid, no corner-avoidance gate.
 2. **No 30′ circular cut** — full square tiles retained.
 3. **Grid in pixel space, not RA/Dec** — the latter breaks near the pole.
-4. **PS1 rather than USNO-B1.0** for the spike mask.
+4. **PS1 rather than USNO-B1.0** for the spike mask — in the default arm.
+   The USNO-B arm ships and is selectable; see *Both arms ship* above.
 5. **WCS-fix (per-tile Gaia refit) in the released catalogue** — no equivalent
    in the original; defaults on and was left on unintentionally, disclosed in
    the release README with the circularity measurement. Coupled to the dedup
