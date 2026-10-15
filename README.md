@@ -237,6 +237,7 @@ python3 tools/union_parity_fullscale.py \
 | `docs/REPRODUCING.md` | end-to-end reproduction guide |
 | `docs/DATASET_NAMING.md` | how the compared catalogues are named, and why |
 | `docs/REFERENCE_CATALOGUE_RELEASE_20261015.md` | the reference catalogue's 2026-10-14 publication, and what it changes |
+| `docs/REFERENCE_CATALOGUE_REPRODUCIBILITY.md` | four things the release lets anyone check |
 | `docs/` | method, astrometry, stage documentation |
 | `results/` | derived catalogues, gzipped — including [`s1-642-paper-parity-edge15-20260908/`](results/s1-642-paper-parity-edge15-20260908/), the paper-parity S0 with the 15′ plate-edge cut already applied (95,826 rows; revision 2 excludes two tiles with a broken astrometric refit, see `docs/WCSFIX_GUARD.md`) |
 
