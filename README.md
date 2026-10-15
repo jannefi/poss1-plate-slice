@@ -236,6 +236,7 @@ python3 tools/union_parity_fullscale.py \
 | `docs/PARAMETERS.md` | every threshold, its origin, and whether you may change it |
 | `docs/REPRODUCING.md` | end-to-end reproduction guide |
 | `docs/DATASET_NAMING.md` | how the compared catalogues are named, and why |
+| `docs/POSS2_RED_CONTROL.md` | the same chain on POSS-II red plates over the same sky, 30 pairs |
 | `docs/REFERENCE_CATALOGUE_RELEASE_20261015.md` | the reference catalogue's 2026-10-14 publication, and what it changes |
 | `docs/REFERENCE_CATALOGUE_REPRODUCIBILITY.md` | four things the release lets anyone check |
 | `docs/` | method, astrometry, stage documentation |
