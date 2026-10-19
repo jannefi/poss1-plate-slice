@@ -31,12 +31,19 @@ machine-learning columns.
 Two properties are worth knowing before anyone plans work against it, because
 both are easy to assume otherwise:
 
-- **There is no plate identifier and no time of day.** The epoch is given to
-  the day only. On the published POSS-I observing record a single date commonly
-  covers several plates, so the exposure a given row came from is not
-  determined by the released columns alone.
+- **There is no plate identifier and no time of day** *in the GitHub copy*.
+  The epoch is given to the day only, and on the published POSS-I observing
+  record a single date commonly covers several plates, so the exposure a given
+  row came from is not determined by those columns alone. **Corrected
+  2026-10-19:** the same rows are also published through the Spanish Virtual
+  Observatory at
+  [`vanish-bruehl26`](https://svocats.cab.inta-csic.es/vanish-bruehl26/), and
+  that version does carry both — `name` (the plate) and `ut_observation` (a
+  full timestamp).
 - **The `ml_probability` column is not the per-candidate score behind the
-  paper's figures.** It takes 287 distinct values across the
+  paper's figures** *in the GitHub copy*. (**Corrected 2026-10-19:** the SVO
+  version carries the real scored vector as `prob` — see
+  [`REFERENCE_CATALOGUE_REPRODUCIBILITY.md`](REFERENCE_CATALOGUE_REPRODUCIBILITY.md) §4.) It takes 287 distinct values across the
   107,875 rows (doi:10.1038/s41598-026-66148-2), and 99.70% of them carry one
   identical value. The repository's own committed
   decile tables span a continuous range in ten bins of roughly equal size, so
@@ -89,10 +96,13 @@ file in hand.
 - **Cite it.** The paper is cited in the README's reference list, with its DOI.
 - **Not redistribute it.** The repository's `LICENSE` grants MIT for code; its
   README states separately that the research datasets "are made available for
-  reproducibility of the associated publication". That is a narrower permission
-  than an open-data licence, and this repository therefore ships no copy of the
-  file and no derivative containing its rows. Anyone wanting it should get it
-  from the source, under whatever terms the authors set.
+  reproducibility of the associated publication". **Corrected 2026-10-19:** a
+  third repository published alongside the challenge states instead "Data: CC
+  BY 4.0", which would permit redistribution with attribution. The two
+  statements conflict and we do not rely on either: this repository ships no
+  copy of the file and no derivative containing its rows, and anyone intending
+  to redistribute should settle the terms with the authors. The SVO archive
+  asks separately to be acknowledged.
 - **Declare any future use.** If any result here is ever derived with that file
   in the loop, it will say so on the result, not in a footnote. The point of
   the audit above is to make the absence checkable; the point of this paragraph
