@@ -276,3 +276,67 @@ The tile sets used here are pipeline output, regenerable from the public plate
 scans by the documented run procedure — a run must retain its per-tile
 `catalogs/` directories, since the attribution reads the per-stage files
 directly. The reference catalogue is public at SVO (`vanish-possi`).
+
+---
+
+## Checking the match rate yourself — `tools/reference_match.py` (2026-10-19)
+
+Everything above needs the per-tile stage catalogues, which are tens of
+gigabytes and not shipped, so a reader cannot run it without regenerating them
+from plate scans. The *match rate* alone needs no such thing — two CSV files
+and a few seconds — and it is the number most often quoted from this
+repository, so it ships as its own tool:
+
+```bash
+python3 tools/reference_match.py \
+    --ref-csv <your local copy of the reference export> \
+    --catalog results/s0-642-20260814/stage_S0.csv.gz \
+    --match-radius-arcsec 5 --sweep
+```
+
+`--ref-csv` is a local path and nothing is downloaded: reference catalogues are
+other people's data under their own terms, so this repository ships none and
+fetches none. SVO's `format=ascii` export is read as-is, leading `#` and all.
+
+**Validation.** Against the 5,399-row published list the tool returns **1,072
+(19.86%)** at 5″, reproducing the figure above exactly. Check that before
+trusting it on anything else.
+
+### Against the VASCO 2025 sample
+
+The same comparison against the catalogue of
+107,875 candidates (doi:10.1038/s41598-026-66148-2), whose SVO release carries
+a plate column so the per-plate spread can be shown:
+
+| our catalogue | rows | reference rows with one of ours within 5″ | per-plate median |
+|---|---:|---:|---:|
+| primary S0 | 122,820 | 42,459 (39.36%) | 42.4% |
+| paper-parity S0 | 134,976 | 48,282 (44.76%) | 49.1% |
+| paper-parity S1, 15′ edge cut | 95,826 | 48,201 (44.68%) | 48.9% |
+
+Two things are worth reading off that table.
+
+**The edge cut is nearly free against this reference.** S1 holds 39,150 fewer
+rows than the S0 it is cut from — 29% of the catalogue — and matches 81 fewer
+reference rows. Whatever the 15′ cut removes, it is almost entirely not
+material this reference contains.
+
+**Radius sensitivity is small and the choice of 5″ is not doing the work.**
+Every arm plateaus by 5″: going out to 10″ adds 79 matches to the primary arm
+out of 42,459. Most of the gain is already in by 2″.
+
+### What these numbers are not
+
+They are **positional match rates against a named catalogue**, and that is the
+only way to quote them. A reference row with no match here may be one this
+pipeline never detected, or one it detected and a later stage removed. Those
+mean opposite things and differ by a factor of five — raw detection runs in the
+high nineties, candidate survival around a fifth. Separating them is what the
+attribution above is for, and it still needs the tiles.
+
+Note also that **the larger reference does not make the attribution table above
+less sample-limited.** That table rests on 112 attributable losses across
+sampled tiles, and a twenty-fold larger reference does not change it until the
+tiles are regenerated against that reference. The sample-size warning at the
+top of this page stands as written.
+

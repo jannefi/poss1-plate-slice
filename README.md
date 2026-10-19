@@ -230,6 +230,7 @@ python3 tools/union_parity_fullscale.py \
 | `tools/classify_displaced_misses.py` | same object, neighbour, or nothing there? |
 | `tools/rim_neighbour_counterparts.py` | second partition rule, drawn on plate radius |
 | `tools/rim_depth_profile.py` | signal and SuperCOSMOS agreement vs plate radius |
+| `tools/reference_match.py` | positional match rate against a reference catalogue, from two CSVs |
 | `tools/audit_independence.py` | proves the reference catalogue is absent, tree and history |
 | `scripts/stage_*_post.py` | 16 post-processing / veto stages |
 | `scripts/local_cache/` | build local Gaia / PS1 / USNO-B mirrors |
