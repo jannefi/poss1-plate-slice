@@ -1,5 +1,17 @@
 # Four things the published release lets anyone check
 
+> **Correction, 2026-10-19.** Since this note was written the same catalogue
+> has also been published through the Spanish Virtual Observatory, at
+> [`vanish-bruehl26`](https://svocats.cab.inta-csic.es/vanish-bruehl26/), and
+> that version carries three columns the GitHub copy does not: a **plate
+> identifier**, a **full observation timestamp**, and the **per-candidate
+> probability** behind the paper's figures. Two statements below were correct
+> about the GitHub release and are **no longer correct about the catalogue as
+> a whole** — §2's claim that the public file carries no plate or exposure
+> time, and §4's conclusion that no third party can check the analysis. Both
+> are corrected in place and marked. §1 and §3 are unaffected. The original
+> text is in this file's git history.
+
 **2026-10-15.** On 2026-10-14 the 107,875-row VASCO 2025 sample (Bruehl et al. 2026)
 became public, in the code repository accompanying *Use of machine
 learning to enhance detection of transient astronomical phenomena in historical
@@ -85,12 +97,19 @@ So the claim in this section rests on the recall ceiling, not on a signature in
 the coordinates. **Anyone repeating this should not expect the coordinates to
 show it directly.**
 
-**What the released file cannot settle at all.** It carries `ra`, `dec` and
-`obs_date` and no plate identifier or exposure time. A single observing date
-commonly covers several plates, so for most rows the exposure a row came from
-is not determined by the released columns. Any account of the construction that
-depends on knowing the plate per row is therefore not checkable against the
-public file, and we make none here.
+**What the GitHub copy cannot settle — corrected 2026-10-19.** As published on
+GitHub the file carries `ra`, `dec` and `obs_date` and no plate identifier or
+exposure time, and since a single observing date commonly covers several
+plates, the exposure a row came from is not determined by those columns.
+
+**That is no longer true of the catalogue as a whole.** The SVO archive
+publishes the same rows with `name` (the plate, e.g. `XE319`) and
+`ut_observation` (a full timestamp, e.g. `1955-04-11 05:30:00`). We checked
+both against an independently held copy and they agree on every row. So a
+plate-per-row account *is* now checkable against public data — by anyone, not
+only by us. We still make no such claim here: this note reports what can be
+verified, and an account of how the catalogue was constructed is a different
+piece of work that we have not published.
 
 ## 3. Why this repository's catalogue is not the same list
 
@@ -122,7 +141,11 @@ thresholds themselves, with the origin of each, are in
 The fair comparison is therefore not total against total. It is like against
 like, at a named stage, with the gate behaviour of both sides stated.
 
-## 4. The machine-learning results cannot be independently reproduced
+## 4. The machine-learning analysis — what can and cannot be reproduced
+
+*This section was headed "The machine-learning results cannot be
+independently reproduced" when written on 2026-10-15. That was true of the
+artifacts available then; see the correction at the end of the section.*
 
 The repository's README states: *"Every paper number can be regenerated from the
 raw inputs with a single command."* We tested that on a fresh clone, in the
@@ -179,12 +202,45 @@ the 107,875 rows (doi:10.1038/s41598-026-66148-2) and 99.70% of rows carry a
 single identical value, while the committed decile tables span a continuous
 range in ten bins of roughly equal size.
 
-**What this does and does not mean.** It means the published results cannot be
-regenerated from the published artifacts, contrary to what the README states,
-and that a reader who runs the documented command will get a pass that verifies
-nothing. **It is not evidence that the results are wrong.** They may be entirely
-correct; the point is that no third party can currently check, which is a
-property of the release rather than of the analysis.
+### Corrected 2026-10-19 — the scores are public elsewhere, and the deciles do reproduce
+
+Everything above remains true of the GitHub repository: `reproduce.py` still
+fails as described, and the classifier still cannot be retrained there. But the
+conclusion drawn from it was too broad, because the scored vector was published
+somewhere else.
+
+The SVO archive carries a `prob` column: **100,041 distinct values** across the
+catalogue (doi:10.1038/s41598-026-66148-2), spanning 0.012682 to 0.972694 —
+against the GitHub column's single value on 99.70% of rows. The committed
+decile tables span 0.0126816 to 0.9726944, so this is the vector those tables
+were built from, rounded to six decimal places.
+
+We tested whether that is enough to reproduce the paper's analysis. It is:
+
+- Restricting to the 370 strict observing dates leaves **99,933 rows**, exactly
+  the figure the configuration states.
+- Deciles rebuilt from `prob` match the committed decile edges to about five
+  decimal places. They are not bit-identical: the six-decimal rounding makes
+  7,834 rows share a value with another, which moves bin boundaries by a row
+  either way.
+- The **nuclear-window percentages reproduce exactly**. Per-decile counts come
+  out 830 / 1037 / 1050 / 1112 / 1085 / 1213 / 1182 / 1169 / 1284 / 1354,
+  identical to the committed table, with D0 at 8.306% against their 8.305% and
+  D9 at 13.548% against their 13.548% — every decile within 0.001 points.
+
+**So the corrected position is a distinction, not a reversal.** The **model**
+cannot be independently reproduced: the 250 labels and the 16 image-derived
+features are published nowhere, so no one outside the group can retrain the
+classifier or audit how the scores were produced. The **analyses built on the
+scores** can now be reproduced, and we have reproduced one of the two.
+
+**What this does and does not mean.** It still means a reader who runs the
+documented command gets a pass that verifies nothing, and that the training
+half is not checkable. It does **not** mean the results cannot be checked at
+all — that is what we said on 2026-10-15 and it was wrong by the time the SVO
+archive appeared. **Neither version was evidence that the results are wrong**,
+and the reproduction above is mild evidence in their favour: the numbers we
+could recompute came out where the paper says they do.
 
 ## What would resolve each point
 
@@ -193,15 +249,25 @@ property of the release rather than of the analysis.
   the step the published description does not determine.
 - For §3: nothing from anyone else. Our side is published, and the comparison
   is now runnable by anyone.
-- For §4: the 250 labels, the feature matrix or the images it was built from,
-  and the scored catalogue. Any one of them moves the situation; all three
-  would close it.
+- For §4: the scored catalogue is no longer needed — SVO publishes it. What
+  remains are the 250 labels and the feature matrix, or the images it was built
+  from. Either would make the training half checkable; together they would
+  close the point.
 
 ## Reproducing this note
 
 The ceiling measurement in §1 uses only public inputs and is in this
 repository. The §4 results come from a clone of the public repository at commit
-`406ac08` in the environment its own `requirements.txt` pins. This repository
-ships **no copy of the released catalogue and no derivative containing its
-rows** — that file is available from its authors, under the terms they set, and
-their README asks that the paper be cited by anyone using it.
+`406ac08` in the environment its own `requirements.txt` pins. The 2026-10-19
+corrections use the SVO archive's own whole-table export
+(`cs.php?RA=180&DEC=0&SR=180&VERB=2&format=ascii`) together with the strict
+date list and committed result tables from that same clone.
+
+This repository ships **no copy of the catalogue and no derivative containing
+its rows**. It is available from its authors and from SVO, under the terms they
+set — and those terms are currently stated two different ways: the ML
+repository's README offers the data "for reproducibility of the associated
+publication", while a third repository published alongside the challenge states
+"Data: CC BY 4.0". Anyone intending to redistribute should resolve that with
+the authors rather than rely on either statement alone. The SVO archive asks
+separately to be acknowledged, and the paper should be cited in any case.
