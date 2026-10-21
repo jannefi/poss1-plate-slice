@@ -107,9 +107,18 @@ publishes the same rows with `name` (the plate, e.g. `XE319`) and
 `ut_observation` (a full timestamp, e.g. `1955-04-11 05:30:00`). We checked
 both against an independently held copy and they agree on every row. So a
 plate-per-row account *is* now checkable against public data — by anyone, not
-only by us. We still make no such claim here: this note reports what can be
-verified, and an account of how the catalogue was constructed is a different
-piece of work that we have not published.
+only by us.
+
+**Updated 2026-10-21: that check has now been done and published.** On sky
+covered by more than one plate, the catalogue's rows sit on the
+furthest-from-edge plate 99.9% of the time, against 36.3% for this
+repository's own tessellation, with the shortfall identically zero out to the
+99th percentile and the rate flat across any plausible astrometric tolerance.
+That is evidence of a plate-selection rule evaluated per position, and it is
+the mechanism behind §1's ceiling rather than a separate claim. It supports no
+account of who ran what or in what order, and none is made.
+[`PLATE_CHOICE.md`](PLATE_CHOICE.md) has the measurement, the controls and the
+limits.
 
 ## 3. Why this repository's catalogue is not the same list
 

@@ -231,6 +231,7 @@ python3 tools/union_parity_fullscale.py \
 | `tools/rim_neighbour_counterparts.py` | second partition rule, drawn on plate radius |
 | `tools/rim_depth_profile.py` | signal and SuperCOSMOS agreement vs plate radius |
 | `tools/reference_match.py` | positional match rate against a reference catalogue, from two CSVs |
+| `tools/plate_choice_test.py` | which plate a catalogue's rows sit on where plates overlap |
 | `tools/audit_independence.py` | proves the reference catalogue is absent, tree and history |
 | `scripts/stage_*_post.py` | 16 post-processing / veto stages |
 | `scripts/local_cache/` | build local Gaia / PS1 / USNO-B mirrors |
@@ -240,6 +241,7 @@ python3 tools/union_parity_fullscale.py \
 | `docs/POSS2_RED_CONTROL.md` | the same chain on POSS-II red plates over the same sky, 30 pairs |
 | `docs/REFERENCE_CATALOGUE_RELEASE_20261015.md` | the reference catalogue's 2026-10-14 publication, and what it changes |
 | `docs/REFERENCE_CATALOGUE_REPRODUCIBILITY.md` | four things the release lets anyone check |
+| `docs/PLATE_CHOICE.md` | which plate, where plates overlap — 99.9% vs 36.3% |
 | `docs/` | method, astrometry, stage documentation |
 | `results/` | derived catalogues, gzipped — including [`s1-642-paper-parity-edge15-20260908/`](results/s1-642-paper-parity-edge15-20260908/), the paper-parity S0 with the 15′ plate-edge cut already applied (95,826 rows; revision 2 excludes two tiles with a broken astrometric refit, see `docs/WCSFIX_GUARD.md`) |
 
