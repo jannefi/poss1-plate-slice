@@ -154,7 +154,10 @@ like, at a named stage, with the gate behaviour of both sides stated.
 
 *This section was headed "The machine-learning results cannot be
 independently reproduced" when written on 2026-10-15. That was true of the
-artifacts available then; see the correction at the end of the section.*
+artifacts available then, and has been corrected twice since as more was
+published — on 2026-10-19 and again on 2026-11-03. **Read both corrections at
+the end of the section before quoting anything above them.** The original text
+is kept rather than rewritten so the record shows what changed and when.*
 
 The repository's README states: *"Every paper number can be regenerated from the
 raw inputs with a single command."* We tested that on a fresh clone, in the
@@ -199,10 +202,15 @@ obstacle in turn:
    `fits_cutouts: D:/plate_data_3deg`, a local path on an author's machine, and
    with no images present the stage produced a catalogue-only cache and
    reported `[OK]`.
+
+> **Superseded 2026-11-03.** Still true of extraction run without the images, but a feature matrix that *does* carry those 16 columns was published on 2026-10-18, so the features themselves are no longer unavailable. See the correction below.
+
 4. **Training then stops, and this one cannot be worked around:**
    `ValueError: No label files loaded. Check config.yaml paths.` The 250 expert
    labels are listed in the README as not included, and without them the
    classifier cannot be trained.
+
+> **Superseded 2026-11-03.** The labels were published on 2026-10-18. Training no longer stops here, and it *could* be worked around — the word "cannot" was wrong even then, since it described an absent file rather than a property of the code. See the correction below.
 
 The scored catalogue itself is also absent — it is excluded by `.gitignore` and
 there are no GitHub releases — and the one scoring column in the released file
@@ -210,6 +218,8 @@ is not the one behind the paper's figures: it takes 287 distinct values over
 the 107,875 rows (doi:10.1038/s41598-026-66148-2) and 99.70% of rows carry a
 single identical value, while the committed decile tables span a continuous
 range in ten bins of roughly equal size.
+
+> **Superseded 2026-10-19 and again 2026-11-03.** The scored catalogue was published by SVO, and then committed to the repository itself on 2026-10-18. See the correction below.
 
 ### Corrected 2026-10-19 — the scores are public elsewhere, and the deciles do reproduce
 
@@ -243,6 +253,10 @@ features are published nowhere, so no one outside the group can retrain the
 classifier or audit how the scores were produced. The **analyses built on the
 scores** can now be reproduced, and we have reproduced one of the two.
 
+> **Superseded 2026-11-03.** Both the labels and the feature matrix were published on 2026-10-18, and we have since retrained the classifier. This sentence was overtaken three weeks after it was written. See the correction below.
+
+
+
 **What this does and does not mean.** It still means a reader who runs the
 documented command gets a pass that verifies nothing, and that the training
 half is not checkable. It does **not** mean the results cannot be checked at
@@ -251,6 +265,93 @@ archive appeared. **Neither version was evidence that the results are wrong**,
 and the reproduction above is mild evidence in their favour: the numbers we
 could recompute came out where the paper says they do.
 
+### Corrected 2026-11-03 — the labels and the feature matrix were published, and the pipeline now runs
+
+On 2026-10-18 the ML repository gained four data files in two commits, with no
+change to any code, configuration or documentation. Among them were the two
+things the 2026-10-19 correction said were "published nowhere": the training
+labels, and the feature matrix including the image-derived columns. The scored
+catalogue was added as well.
+
+That makes the sentence above out of date, and the position needs splitting a
+second time. **The pipeline can now be made to train and score end to end,
+which it could not before. The published scores still do not reproduce.** Those
+are two findings, and collapsing them in either direction would misdescribe
+what we found.
+
+**Tested on 2026-11-03**, on a fresh clone at commit `418e8c8`, in the pinned
+environment its own `requirements.txt` specifies.
+
+**The documented command still fails in under a second**, exactly as it did on
+2026-10-15, with the same "Feature cache not found" error — because the added
+files were not wired in. Every path the configuration names still points
+somewhere the shipped files are not: the feature cache is read from a results
+directory and ships under `data/`; the catalogue is read from `data/raw/` and
+ships at `data/`; all four label paths are absent, and the file that does hold
+the labels is referenced nowhere in the repository. `seaborn` is still imported
+by the training stage and still missing from `requirements.txt`. Separately,
+all seven pipeline scripts compute their base directory as four nested
+`dirname` calls on their own `__file__`, which lands **two levels above the
+repository root**, so every relative path resolves outside the checkout
+wherever it is cloned.
+
+**With the files placed where the configuration asks**, and the label file split
+back into the three CSV paths it names, training and scoring both complete, in
+about a minute. **The training set reproduces exactly**: 250 labels at 134
+positive and 116 negative, 23 features with matching names, 13 dropped by the
+prevalence filter — every figure identical to the repository's own
+`training_report.json`. So the labels and the feature construction are now
+genuinely checkable, and they check out.
+
+**The model that comes out is not the published one.** Measured against the
+repository's own tolerance bands, cross-validated AUC is 0.845 against an
+expected 0.809 (band ±0.03) and specificity is 0.819 against 0.714 (band
+±0.08); sensitivity matches at 0.709. Scoring the catalogue and joining to the
+published scored file succeeds on every row — **107,875 of 107,875** — so this
+is a row-for-row comparison with no matching loss:
+
+- **no row agrees to 1e-6**, and 7.4% agree to 0.01
+- mean absolute difference **0.099**, maximum **0.817**
+- Pearson **r = 0.883**, Spearman **ρ = 0.881**
+- **34.95% of rows fall in the same decile**; of the 10,788 rows in the
+  published top decile, **7,559 (70.1%)** are in ours, and 9,945 (92.2%) are
+  in our top two
+
+Deciles are what the paper's figures rest on, so the last line is the one that
+matters: the top decile is broadly stable, the decile assignment overall is
+not. Calibration does not explain the gap — the raw and final probability
+columns are identical on every row of **both** catalogues, so neither applied
+the isotonic step the configuration requests.
+
+**This is not run-to-run variation.** Two complete runs under identical
+conditions agree on all 107,875 rows (doi:10.1038/s41598-026-66148-2) to
+4.4e-16, with identical metrics. The pipeline is deterministic, so the
+difference is between what this code and this data produce and what was
+published — not seed noise.
+
+**What this does and does not mean.** It does not mean the published numbers
+are wrong, and we are not claiming that. One environment and one deterministic
+pipeline cannot distinguish a difference in a library build from a code
+revision between what produced the published catalogue and what was committed
+beside it; either would look exactly like this. What it does mean is narrower
+and still worth stating: a reader who follows the documented instructions does
+not get the published scores, and now that the inputs are public, that is a
+checkable claim rather than an inference from missing files.
+
+**How this sits with the 2026-10-19 correction, which called the reproduction
+"mild evidence in their favour".** Both hold, because they are about different
+stages. Take the published scores as given and the analysis built on them
+reproduces — the nuclear-window percentages came out identical to the committed
+table. Try to regenerate those scores from the published code, labels and
+features, and a different vector comes back. So the step that is now in
+question is the scoring itself, not the statistics downstream of it, and
+nothing above should be read as casting doubt on the decile arithmetic we
+confirmed a fortnight earlier.
+
+The nuclear-validation stage remains unrunnable: it reads a merged timeline
+file that is not in the repository, and the similarly-named file that is there
+is not the same one — substituting it fails on a missing weather column.
+
 ## What would resolve each point
 
 - For §1 and §2: the procedure that actually generated the list, in enough
@@ -258,16 +359,20 @@ could recompute came out where the paper says they do.
   the step the published description does not determine.
 - For §3: nothing from anyone else. Our side is published, and the comparison
   is now runnable by anyone.
-- For §4: the scored catalogue is no longer needed — SVO publishes it. What
-  remains are the 250 labels and the feature matrix, or the images it was built
-  from. Either would make the training half checkable; together they would
-  close the point.
+- For §4: the labels, the feature matrix and the scored catalogue are all
+  published now, and the training half is checkable — we have checked it, and
+  the training set reproduces exactly. What remains is the gap between the
+  scores the shipped code produces and the scores shipped beside it. The
+  configuration paths and the base-directory calculation would need correcting
+  before the documented command runs at all; beyond that, the environment or
+  code revision that produced the published catalogue would resolve it.
 
 ## Reproducing this note
 
 The ceiling measurement in §1 uses only public inputs and is in this
-repository. The §4 results come from a clone of the public repository at commit
-`406ac08` in the environment its own `requirements.txt` pins. The 2026-10-19
+repository. The §4 results come from clones of the public repository at commits
+`406ac08` (2026-10-15 and 2026-10-19) and `418e8c8` (2026-11-03), each in the
+environment its own `requirements.txt` pins. The 2026-10-19
 corrections use the SVO archive's own whole-table export
 (`cs.php?RA=180&DEC=0&SR=180&VERB=2&format=ascii`) together with the strict
 date list and committed result tables from that same clone.
